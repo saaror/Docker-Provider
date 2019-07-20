@@ -24,10 +24,10 @@ class CAdvisorMetricsAPIClient
 
   @rsPromInterval = ENV["TELEMETRY_RS_PROM_INTERVAL"]
   @dsPromInterval = ENV["TELEMETRY_DS_PROM_INTERVAL"]
-  
+
   @rsPromFieldPassCount = ENV["TELEMETRY_RS_PROM_FIELDPASS_LENGTH"]
   @dsPromFieldPassCount = ENV["TELEMETRY_DS_PROM_FIELDPASS_LENGTH"]
-  
+
   @rsPromFieldDropCount = ENV["TELEMETRY_RS_PROM_FIELDDROP_LENGTH"]
   @dsPromFieldDropCount = ENV["TELEMETRY_DS_PROM_FIELDDROP_LENGTH"]
 
@@ -37,7 +37,6 @@ class CAdvisorMetricsAPIClient
   @dsPromUrlCount = ENV["TELEMETRY_DS_PROM_URLS_LENGTH"]
 
   @rsPromMonitorPods = ENV["TELEMETRY_RS_PROM_MONITOR_PODS"]
-  
 
   @LogPath = "/var/opt/microsoft/docker-cimprov/log/kubernetes_perf_log.txt"
   @Log = Logger.new(@LogPath, 2, 10 * 1048576) #keep last 2 files, max log file size = 10M
@@ -229,6 +228,7 @@ class CAdvisorMetricsAPIClient
                       telemetryProps["clusterAgentSchemaVersion"] = @clusterAgentSchemaVersion
                     end
                     #telemetry about prometheus metric collections settings
+                    $log.warn("before condition")
                     if (File.file?(@promConfigMountPath))
                       telemetryProps["rsPromInt"] = @rsPromInterval
                       telemetryProps["dsPromInt"] = @dsPromInterval
@@ -241,6 +241,8 @@ class CAdvisorMetricsAPIClient
                       telemetryProps["dsPromUrl"] = @dsPromUrlCount
                       telemetryProps["rsPromMonPods"] = @rsPromMonitorPods
                     end
+                    $log.warn("after condition")
+                    $log.warn("telemetryprops: #{telemetryProps}")
                     ApplicationInsightsUtility.sendMetricTelemetry(metricNametoReturn, metricValue, telemetryProps)
                   end
                 end

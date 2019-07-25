@@ -5,7 +5,7 @@ require "json"
 require_relative "tomlrb"
 require_relative "microsoft/omsagent/plugin/KubernetesApiClient"
 
-@cpuMemConfigMapMountPath = "/etc/config/settings/custom-cpu-memory-settings"
+@cpuMemConfigMapMountPath = "/etc/config/settings/custom-resource-settings"
 @replicaset = "replicaset"
 @daemonset = "daemonset"
 
@@ -38,6 +38,7 @@ def parseConfigMap
   end
 end
 
+#Get current requests and limits for daemonset/replicaset
 def getRequestsAndLimits(response)
   begin
     currentResources = {}
@@ -68,20 +69,18 @@ def getRequestsAndLimits(response)
   end
 end
 
-#Set the resources for daemonset and replicaset
+#Get the resources for daemonset/replicaset
 def getCurrentResources(controller)
   begin
     currentResources = {}
-    if !controller.nil?
-      if (controller.casecmp(@daemonset) == 0)
-        # Make kube api query to get the daemonset resource and get current requests and limits
-        response = KubernetesApiClient.getKubeResourceInfo("omsagent")
-        currentResources = getRequestsAndLimits(response)
-      elsif (controller.casecmp(@replicaset) == 0)
-        # Make kube api query to get the replicaset resource and get current requests and limits
-        response = KubernetesApiClient.getKubeResourceInfo("omsagent-rs")
-        currentResources = getRequestsAndLimits(response)
-      end
+    if (controller.casecmp(@daemonset) == 0)
+      # Make kube api query to get the daemonset resource and get current requests and limits
+      response = KubernetesApiClient.getKubeResourceInfo("omsagent")
+      currentResources = getRequestsAndLimits(response)
+    elsif (controller.casecmp(@replicaset) == 0)
+      # Make kube api query to get the replicaset resource and get current requests and limits
+      response = KubernetesApiClient.getKubeResourceInfo("omsagent-rs")
+      currentResources = getRequestsAndLimits(response)
     end
     #returning a hash of the current resources
     return currentResources
@@ -91,7 +90,44 @@ def getCurrentResources(controller)
   end
 end
 
+#Set the resources for daemonset/replicaset
+def setOmsAgentResources(currentAgentResources, parsedConfig, controller)
+  begin
+    # customCpuLimit = ""
+    # customMemoryLimit = ""
+    # customCpuRequest = ""
+    # customMemoryRequest = ""
+    if (controller.casecmp(@daemonset) == 0)
+      if !parsedConfig[:resource_settings].nil? &&
+         !parsedConfig[:resource_settings][:omsagent].nil?
+        customCpuLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuLimit]
+        customMemoryLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentMemLimit]
+        customCpuRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuRequest]
+        customMemoryRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentMemRequest]
+        #Todo add setting validation logic
+
+      end
+    elsif (controller.casecmp(@replicaset) == 0)
+      if !parsedConfig[:resource_settings].nil? &&
+         !parsedConfig[:resource_settings][:omsagent - rs].nil?
+        customCpuLimit = parsedConfig[:resource_settings][:omsagent - rs][:omsAgentRsCpuLimit]
+        customMemoryLimit = parsedConfig[:resource_settings][:omsagent - rs][:omsAgentRsMemLimit]
+        customCpuRequest = parsedConfig[:resource_settings][:omsagent - rs][:omsAgentRsCpuRequest]
+        customMemoryRequest = parsedConfig[:resource_settings][:omsagent - rs][:omsAgentRsMemRequest]
+        #Todo add setting validation logic
+
+      end
+    end
+  rescue => errorStr
+  end
+end
+
 #Parse config map to get the custom settings for cpu and memory resources
 configMapSettings = parseConfigMap
 controller = ENV["CONTROLLER_TYPE"]
-currentAgentResources = getCurrentResources(controller)
+if !controller.nil?
+  currentAgentResources = getCurrentResources(controller)
+  puts "currentAgentresources"
+  puts currentAgentResources
+  #setOmsAgentResources(currentAgentResources, configMapSettings, controller)
+end

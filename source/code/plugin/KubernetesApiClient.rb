@@ -12,6 +12,8 @@ class KubernetesApiClient
   require_relative "oms_common"
 
   @@ApiVersion = "v1"
+  @@daemonsetApiVersion = "v1"
+  @@deploymentApiVersion = "v1"
   @@CaFile = "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
   @@ClusterName = nil
   @@ClusterId = nil
@@ -79,12 +81,22 @@ class KubernetesApiClient
     def getResourceUri(resource)
       begin
         if ENV["KUBERNETES_SERVICE_HOST"] && ENV["KUBERNETES_PORT_443_TCP_PORT"]
-          return "https://#{ENV["KUBERNETES_SERVICE_HOST"]}:#{ENV["KUBERNETES_PORT_443_TCP_PORT"]}/api/" + @@ApiVersion + "/" + resource
+          # Uri to get omsagent daemonset/deployment to check the current cpu and memory resources
+          if resource == "omsagent"
+            return "https://#{ENV["KUBERNETES_SERVICE_HOST"]}:#{ENV["KUBERNETES_PORT_443_TCP_PORT"]}/apis/apps/" + @@daemonsetApiVersion + "/namespaces/kube-system/daemonsets/omsagent"
+          elsif resource == "omsagent-rs"
+            return "https://#{ENV["KUBERNETES_SERVICE_HOST"]}:#{ENV["KUBERNETES_PORT_443_TCP_PORT"]}/apis/apps/" + @@deploymentApiVersion + "/namespaces/kube-system/deployments/omsagent-rs"
+          else
+            # Default resource uri
+            return "https://#{ENV["KUBERNETES_SERVICE_HOST"]}:#{ENV["KUBERNETES_PORT_443_TCP_PORT"]}/api/" + @@ApiVersion + "/" + resource
+          end
         else
-          @Log.warn ("Kubernetes environment variable not set KUBERNETES_SERVICE_HOST: #{ENV["KUBERNETES_SERVICE_HOST"]} KUBERNETES_PORT_443_TCP_PORT: #{ENV["KUBERNETES_PORT_443_TCP_PORT"]}. Unable to form resourceUri")
+          @Log.warn ("Kubernetes environment variable not set KUBERNETES_SERVICE_HOST: #{ENV["KUBERNETES_SERVICE_HOST"]} KUBERNETES_PORT_443_TCP_PORT: #{ENV["KUBERNETES_PORT_443_TCP_PORT"]}. Unable to form resourceUri for resource: #{resource}")
           return nil
         end
       end
+    rescue => error
+      @Log.warn("getResourceUri failed: #{error}")
     end
 
     def getClusterName

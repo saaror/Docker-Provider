@@ -80,7 +80,7 @@ def getCurrentResourcesDs
     #returning a hash of the current resources
     return currentResources
   rescue => errorStr
-    puts "config::error::Exception while getting current resources for the daemonset, using defaults"
+    puts "config::error::Exception while getting current resources for the daemonset: #{errorStr}, using defaults"
     return nil
   end
 end
@@ -95,7 +95,7 @@ def getCurrentResourcesRs
     #returning a hash of the current resources
     return currentResources
   rescue => errorStr
-    puts "config::error::Exception while getting current resources for the replicaset, using defaults"
+    puts "config::error::Exception while getting current resources for the replicaset : #{errorStr}, using defaults"
     return nil
   end
 end
@@ -121,7 +121,9 @@ def getDefaultResourcesRs
 end
 
 def isCpuResourceValid(cpuSetting)
-  if !cpuSetting.nil? && cpuSetting.kind_of?(String) && cpuSetting.downcase.end_with?("m")
+  if !cpuSetting.nil? &&
+     cpuSetting.kind_of?(String) &&
+     cpuSetting.downcase.end_with?("m")
     return true
   else
     return false
@@ -129,7 +131,11 @@ def isCpuResourceValid(cpuSetting)
 end
 
 def isMemoryResourceValid(memorySetting)
-  if !memorySetting.nil? && memorySetting.kind_of?(String) && (memorySetting.downcase.end_with?("Mi") || memorySetting.downcase.end_with?("Gi"))
+  if !memorySetting.nil? &&
+     memorySetting.kind_of?(String) &&
+     (memorySetting.downcase.end_with?("Mi") ||
+      memorySetting.downcase.end_with?("Gi") ||
+      memorySetting.downcase.end_with?("Ti"))
     return true
   else
     return false
@@ -137,7 +143,7 @@ def isMemoryResourceValid(memorySetting)
 end
 
 #Set the resources for daemonset/replicaset
-def setNewResourcesDs(parsedConfig, controller)
+def getNewResourcesDs(parsedConfig)
   begin
     configMapResources = {}
     if !parsedConfig[:resource_settings].nil? &&
@@ -156,24 +162,65 @@ def setNewResourcesDs(parsedConfig, controller)
       # If config map doesnt exist
       configMapResources = getDefaultResourcesDs
     end
+    return configMapResources
   rescue => errorStr
+    puts "config::error::Exception while getting new resources for the daemonset: #{errorStr}, using defaults"
+    return nil
   end
 end
 
-#Parse config map to get the custom settings for cpu and memory resources
+def getNewResourcesRs(parsedConfig)
+  begin
+    configMapResources = {}
+    if !parsedConfig[:resource_settings].nil? &&
+       !parsedConfig[:resource_settings][:omsagentRs].nil?
+      customCpuLimit = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsCpuLimit]
+      customMemoryLimit = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsMemLimit]
+      customCpuRequest = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsCpuRequest]
+      customMemoryRequest = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsMemRequest]
+
+      #Check to see if the values specified in the config map are valid
+      configMapResources["cpuLimits"] = isCpuResourceValid(customCpuLimit) ? customCpuLimit : @defaultOmsAgentRsCpuLimit
+      configMapResources["memoryLimits"] = isMemoryResourceValid(customMemoryLimit) ? customMemoryLimit : @defaultOmsAgentRsMemLimit
+      configMapResources["cpuRequests"] = isCpuResourceValid(customCpuRequest) ? customCpuRequest : @defaultOmsAgentRsCpuRequest
+      configMapResources["memoryRequests"] = isMemoryResourceValid(customMemoryRequest) ? customMemoryRequest : @defaultOmsAgentRsMemRequest
+    else
+      # If config map doesnt exist
+      configMapResources = getDefaultResourcesRs
+    end
+    return configMapResources
+  rescue => errorStr
+    puts "config::error::Exception while getting new resources for the replicaset: #{errorStr}, using defaults"
+    return nil
+  end
+end
+
+# Get current resource requests and limits for daemonset and replicaset
+currentAgentResourcesDs = getCurrentResourcesDs
+currentAgentResourcesRs = getCurrentResourcesRs
+
+# Parse config map to get new settings for daemonset and replicaset
 configMapSettings = parseConfigMap
 if !configMapSettings.nil?
-  controller = ENV["CONTROLLER_TYPE"]
-  if !controller.nil?
-    currentAgentResources = getCurrentResources(controller)
-    #puts currentAgentResources
-    # setOmsAgentResources(currentAgentResources, configMapSettings, controller)
-    validateConfigMap(configMapSettings, controller)
-  end
+  newResourcesDs = getNewResourcesDs(configMapSettings)
+  newResourcesRs = getNewResourcesRs(configMapSettings)
 else
-  if !controller.nil?
-    resourcesToSet = getDefaultResources(controller)
-  else
-    puts "config::error::Cannot set resources on the pod since the controller type is nil"
-  end
+  newResourcesDs = getDefaultResourcesDs
+  newResourcesRs = getDefaultResourcesRs
+end
+
+if !currentAgentResourcesDs.nil? && !currentAgentResourcesDs.empty?
+  newResourcesDs = getNewResourcesRs
+end
+
+currentAgentResourcesRs = getCurrentResourcesRs
+if !currentAgentResourcesRs.nil? && !currentAgentResourcesRs.empty?
+end
+
+configMapSettings = parseConfigMap
+if !configMapSettings.nil?
+  currentAgentResources = getCurrentResources(controller)
+  validateConfigMap(configMapSettings, controller)
+else
+  resourcesToSet = getDefaultResources(controller)
 end

@@ -42,7 +42,7 @@ end
 def getRequestsAndLimits(response)
   begin
     currentResources = {}
-    if !response.nil? && !response.body.nil? && response.body.empty?
+    if !response.nil? && !response.body.nil? && !response.body.empty?
       omsAgentResource = JSON.parse(response.body)
       if !omsAgentResource.nil? &&
          !omsAgentResource["spec"].nil? &&
@@ -64,6 +64,7 @@ def getRequestsAndLimits(response)
         puts "config::error::Error while processing the response for omsagent(ds/rs) : expected json key is nil"
       end
     end
+    return currentResources
   rescue => errorStr
     puts "config::error::Error while processing the response for omsagent(ds/rs) resource for requests and limits : #{errorStr}"
   end
@@ -127,7 +128,5 @@ configMapSettings = parseConfigMap
 controller = ENV["CONTROLLER_TYPE"]
 if !controller.nil?
   currentAgentResources = getCurrentResources(controller)
-  puts "currentAgentresources"
-  puts currentAgentResources
-  #setOmsAgentResources(currentAgentResources, configMapSettings, controller)
+  setOmsAgentResources(currentAgentResources, configMapSettings, controller)
 end

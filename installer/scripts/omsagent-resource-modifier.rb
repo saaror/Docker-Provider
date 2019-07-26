@@ -195,10 +195,6 @@ def getNewResourcesRs(parsedConfig)
   end
 end
 
-# Get current resource requests and limits for daemonset and replicaset
-currentAgentResourcesDs = getCurrentResourcesDs
-currentAgentResourcesRs = getCurrentResourcesRs
-
 # Parse config map to get new settings for daemonset and replicaset
 configMapSettings = parseConfigMap
 if !configMapSettings.nil?
@@ -209,18 +205,14 @@ else
   newResourcesRs = getDefaultResourcesRs
 end
 
-if !currentAgentResourcesDs.nil? && !currentAgentResourcesDs.empty?
-  newResourcesDs = getNewResourcesRs
-end
-
+# Get current resource requests and limits for daemonset and replicaset
+currentAgentResourcesDs = getCurrentResourcesDs
 currentAgentResourcesRs = getCurrentResourcesRs
-if !currentAgentResourcesRs.nil? && !currentAgentResourcesRs.empty?
+
+if !currentAgentResourcesDs.nil? && !currentAgentResourcesDs.empty?
+  # Logic to compare existing and new and update
 end
 
-configMapSettings = parseConfigMap
-if !configMapSettings.nil?
-  currentAgentResources = getCurrentResources(controller)
-  validateConfigMap(configMapSettings, controller)
-else
-  resourcesToSet = getDefaultResources(controller)
+if !currentAgentResourcesRs.nil? && !currentAgentResourcesRs.empty?
+  # Logic to compare existing and new and update
 end

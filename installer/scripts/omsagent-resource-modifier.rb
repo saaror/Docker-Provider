@@ -92,12 +92,9 @@ def getCurrentResources(controller)
 end
 
 #Set the resources for daemonset/replicaset
-def setOmsAgentResources(currentAgentResources, parsedConfig, controller)
+def validateConfigMap(parsedConfig, controller)
   begin
-    # customCpuLimit = ""
-    # customMemoryLimit = ""
-    # customCpuRequest = ""
-    # customMemoryRequest = ""
+    configMapResources = {}
     if (controller.casecmp(@daemonset) == 0)
       if !parsedConfig[:resource_settings].nil? &&
          !parsedConfig[:resource_settings][:omsagent].nil?
@@ -110,11 +107,11 @@ def setOmsAgentResources(currentAgentResources, parsedConfig, controller)
       end
     elsif (controller.casecmp(@replicaset) == 0)
       if !parsedConfig[:resource_settings].nil? &&
-         !parsedConfig[:resource_settings][:omsagent - rs].nil?
-        customCpuLimit = parsedConfig[:resource_settings][:omsagent - rs][:omsAgentRsCpuLimit]
-        customMemoryLimit = parsedConfig[:resource_settings][:omsagent - rs][:omsAgentRsMemLimit]
-        customCpuRequest = parsedConfig[:resource_settings][:omsagent - rs][:omsAgentRsCpuRequest]
-        customMemoryRequest = parsedConfig[:resource_settings][:omsagent - rs][:omsAgentRsMemRequest]
+         !parsedConfig[:resource_settings][:omsagentrs].nil?
+        customCpuLimit = parsedConfig[:resource_settings][:omsagentrs][:omsAgentRsCpuLimit]
+        customMemoryLimit = parsedConfig[:resource_settings][:omsagentrs][:omsAgentRsMemLimit]
+        customCpuRequest = parsedConfig[:resource_settings][:omsagentrs][:omsAgentRsCpuRequest]
+        customMemoryRequest = parsedConfig[:resource_settings][:omsagentrs][:omsAgentRsMemRequest]
         #Todo add setting validation logic
 
       end
@@ -128,5 +125,6 @@ configMapSettings = parseConfigMap
 controller = ENV["CONTROLLER_TYPE"]
 if !controller.nil?
   currentAgentResources = getCurrentResources(controller)
+  #puts currentAgentResources
   setOmsAgentResources(currentAgentResources, configMapSettings, controller)
 end

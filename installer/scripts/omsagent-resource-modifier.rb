@@ -70,95 +70,91 @@ def getRequestsAndLimits(response)
   end
 end
 
-#Get the resources for daemonset/replicaset
-def getCurrentResources(controller)
+#Get the resources for daemonset
+def getCurrentResourcesDs
   begin
     currentResources = {}
-    if (controller.casecmp(@daemonset) == 0)
-      # Make kube api query to get the daemonset resource and get current requests and limits
-      response = KubernetesApiClient.getKubeResourceInfo("omsagent")
-      currentResources = getRequestsAndLimits(response)
-    elsif (controller.casecmp(@replicaset) == 0)
-      # Make kube api query to get the replicaset resource and get current requests and limits
-      response = KubernetesApiClient.getKubeResourceInfo("omsagent-rs")
-      currentResources = getRequestsAndLimits(response)
-    end
+    # Make kube api query to get the daemonset resource and get current requests and limits
+    response = KubernetesApiClient.getKubeResourceInfo("omsagent")
+    currentResources = getRequestsAndLimits(response)
     #returning a hash of the current resources
     return currentResources
   rescue => errorStr
-    puts "config::error::Exception while getting current resources for the pod, using defaults"
+    puts "config::error::Exception while getting current resources for the daemonset, using defaults"
     return nil
   end
 end
 
-#Get default resources for controller
-def getDefaultResources(controller)
-  defaultResources = {}
-  if (controller.casecmp(@daemonset) == 0)
-    defaultResources["cpuLimits"] = @defaultOmsAgentCpuLimit
-    defaultResources["memoryLimits"] = @defaultOmsAgentMemLimit
-    defaultResources["cpuRequests"] = @defaultOmsAgentCpuRequest
-    defaultResources["memoryRequests"] = @defaultOmsAgentMemRequest
-  elsif (controller.casecmp(@replicaset) == 0)
-    defaultResources["cpuLimits"] = @defaultOmsAgentRsCpuLimit
-    defaultResources["memoryLimits"] = @defaultOmsAgentRsMemLimit
-    defaultResources["cpuRequests"] = @defaultOmsAgentRsCpuRequest
-    defaultResources["memoryRequests"] = @defaultOmsAgentRsMemRequest
+#Get the resources for replicaset
+def getCurrentResourcesRs
+  begin
+    currentResources = {}
+    # Make kube api query to get the replicaset resource and get current requests and limits
+    response = KubernetesApiClient.getKubeResourceInfo("omsagent-rs")
+    currentResourcesRs = getRequestsAndLimits(response)
+    #returning a hash of the current resources
+    return currentResources
+  rescue => errorStr
+    puts "config::error::Exception while getting current resources for the replicaset, using defaults"
+    return nil
   end
+end
+
+#Get default resources for daemonset
+def getDefaultResourcesDs
+  defaultResources = {}
+  defaultResources["cpuLimits"] = @defaultOmsAgentCpuLimit
+  defaultResources["memoryLimits"] = @defaultOmsAgentMemLimit
+  defaultResources["cpuRequests"] = @defaultOmsAgentCpuRequest
+  defaultResources["memoryRequests"] = @defaultOmsAgentMemRequest
   return defaultResources
 end
 
+#Get default resources for replicaset
+def getDefaultResourcesRs
+  defaultResources = {}
+  defaultResources["cpuLimits"] = @defaultOmsAgentRsCpuLimit
+  defaultResources["memoryLimits"] = @defaultOmsAgentRsMemLimit
+  defaultResources["cpuRequests"] = @defaultOmsAgentRsCpuRequest
+  defaultResources["memoryRequests"] = @defaultOmsAgentRsMemRequest
+  return defaultResources
+end
+
+def isCpuResourceValid(cpuSetting)
+  if !cpuSetting.nil? && cpuSetting.kind_of?(String) && cpuSetting.downcase.end_with?("m")
+    return true
+  else
+    return false
+  end
+end
+
+def isMemoryResourceValid(memorySetting)
+  if !memorySetting.nil? && memorySetting.kind_of?(String) && (memorySetting.downcase.end_with?("Mi") || memorySetting.downcase.end_with?("Gi"))
+    return true
+  else
+    return false
+  end
+end
+
 #Set the resources for daemonset/replicaset
-def validateConfigMap(parsedConfig, controller)
+def setNewResourcesDs(parsedConfig, controller)
   begin
     configMapResources = {}
-    if (controller.casecmp(@daemonset) == 0)
-      if !parsedConfig[:resource_settings].nil? &&
-         !parsedConfig[:resource_settings][:omsagent].nil?
-        customCpuLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuLimit]
-        customMemoryLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentMemLimit]
-        customCpuRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuRequest]
-        customMemoryRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentMemRequest]
+    if !parsedConfig[:resource_settings].nil? &&
+       !parsedConfig[:resource_settings][:omsagent].nil?
+      customCpuLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuLimit]
+      customMemoryLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentMemLimit]
+      customCpuRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuRequest]
+      customMemoryRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentMemRequest]
 
-        #Check to see if the values specified in the config map are valid
-        if !customCpuLimit.nil? && customCpuLimit.kind_of?(String) && customCpuLimit.end_with?("m")
-          configMapResources["cpuLimits"] = customCpuLimit
-          #Todo Add check to check range of values
-        else
-          configMapResources["cpuLimits"] = @defaultOmsAgentCpuLimit
-        end
-        if !customMemoryLimit.nil? && customMemoryLimit.kind_of?(String) && (customMemoryLimit.end_with?("Mi") || customMemoryLimit.end_with?("Gi"))
-          configMapResources["memoryLimits"] = customMemoryLimit
-          #Todo Add check to check range of values
-        else
-          configMapResources["memoryLimits"] = @defaultOmsAgentMemLimit
-        end
-        if !customCpuRequest.nil? && customCpuRequest.kind_of?(String) && customCpuRequest.end_with?("m")
-          configMapResources["cpuRequests"] = customCpuRequest
-          #Todo Add check to check range of values
-        else
-          configMapResources["cpuRequests"] = @defaultOmsAgentCpuRequest
-        end
-        if !customMemoryRequest.nil? && customMemoryRequest.kind_of?(String) && (customMemoryLimit.end_with?("Mi") || customMemoryLimit.end_with?("Gi"))
-          configMapResources["memoryRequests"] = customMemoryRequest
-          #Todo Add check to check range of values
-        else
-          configMapResources["memoryRequests"] = @defaultOmsAgentMemRequest
-        end
-      else
-        # If config map doesnt exist
-        configMapResources = getDefaultResources(controller)
-      end
-    elsif (controller.casecmp(@replicaset) == 0)
-      if !parsedConfig[:resource_settings].nil? &&
-         !parsedConfig[:resource_settings][:omsagentrs].nil?
-        customCpuLimit = parsedConfig[:resource_settings][:omsagentrs][:omsAgentRsCpuLimit]
-        customMemoryLimit = parsedConfig[:resource_settings][:omsagentrs][:omsAgentRsMemLimit]
-        customCpuRequest = parsedConfig[:resource_settings][:omsagentrs][:omsAgentRsCpuRequest]
-        customMemoryRequest = parsedConfig[:resource_settings][:omsagentrs][:omsAgentRsMemRequest]
-        #Todo add setting validation logic
-
-      end
+      #Check to see if the values specified in the config map are valid
+      configMapResources["cpuLimits"] = isCpuResourceValid(customCpuLimit) ? customCpuLimit : @defaultOmsAgentCpuLimit
+      configMapResources["memoryLimits"] = isMemoryResourceValid(customMemoryLimit) ? customMemoryLimit : @defaultOmsAgentMemLimit
+      configMapResources["cpuRequests"] = isCpuResourceValid(customCpuRequest) ? customCpuRequest : @defaultOmsAgentCpuRequest
+      configMapResources["memoryRequests"] = isMemoryResourceValid(customMemoryRequest) ? customMemoryRequest : @defaultOmsAgentMemRequest
+    else
+      # If config map doesnt exist
+      configMapResources = getDefaultResourcesDs
     end
   rescue => errorStr
   end

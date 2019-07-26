@@ -91,6 +91,23 @@ def getCurrentResources(controller)
   end
 end
 
+#Get default resources for controller
+def getDefaultResources(controller)
+  defaultResources = {}
+  if (controller.casecmp(@daemonset) == 0)
+    defaultResources["cpuLimits"] = @defaultOmsAgentCpuLimit
+    defaultResources["memoryLimits"] = @defaultOmsAgentMemLimit
+    defaultResources["cpuRequests"] = @defaultOmsAgentCpuRequest
+    defaultResources["memoryRequests"] = @defaultOmsAgentMemRequest
+  elsif (controller.casecmp(@replicaset) == 0)
+    defaultResources["cpuLimits"] = @defaultOmsAgentRsCpuLimit
+    defaultResources["memoryLimits"] = @defaultOmsAgentRsMemLimit
+    defaultResources["cpuRequests"] = @defaultOmsAgentRsCpuRequest
+    defaultResources["memoryRequests"] = @defaultOmsAgentRsMemRequest
+  end
+  return defaultResources
+end
+
 #Set the resources for daemonset/replicaset
 def validateConfigMap(parsedConfig, controller)
   begin
@@ -102,8 +119,35 @@ def validateConfigMap(parsedConfig, controller)
         customMemoryLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentMemLimit]
         customCpuRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuRequest]
         customMemoryRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentMemRequest]
-        #Todo add setting validation logic
 
+        #Check to see if the values specified in the config map are valid
+        if !customCpuLimit.nil? && customCpuLimit.kind_of?(String) && customCpuLimit.end_with?("m")
+          configMapResources["cpuLimits"] = customCpuLimit
+          #Todo Add check to check range of values
+        else
+          configMapResources["cpuLimits"] = @defaultOmsAgentCpuLimit
+        end
+        if !customMemoryLimit.nil? && customMemoryLimit.kind_of?(String) && (customMemoryLimit.end_with?("Mi") || customMemoryLimit.end_with?("Gi"))
+          configMapResources["memoryLimits"] = customMemoryLimit
+          #Todo Add check to check range of values
+        else
+          configMapResources["memoryLimits"] = @defaultOmsAgentMemLimit
+        end
+        if !customCpuRequest.nil? && customCpuRequest.kind_of?(String) && customCpuRequest.end_with?("m")
+          configMapResources["cpuRequests"] = customCpuRequest
+          #Todo Add check to check range of values
+        else
+          configMapResources["cpuRequests"] = @defaultOmsAgentCpuRequest
+        end
+        if !customMemoryRequest.nil? && customMemoryRequest.kind_of?(String) && (customMemoryLimit.end_with?("Mi") || customMemoryLimit.end_with?("Gi"))
+          configMapResources["memoryRequests"] = customMemoryRequest
+          #Todo Add check to check range of values
+        else
+          configMapResources["memoryRequests"] = @defaultOmsAgentMemRequest
+        end
+      else
+        # If config map doesnt exist
+        configMapResources = getDefaultResources(controller)
       end
     elsif (controller.casecmp(@replicaset) == 0)
       if !parsedConfig[:resource_settings].nil? &&
@@ -122,9 +166,18 @@ end
 
 #Parse config map to get the custom settings for cpu and memory resources
 configMapSettings = parseConfigMap
-controller = ENV["CONTROLLER_TYPE"]
-if !controller.nil?
-  currentAgentResources = getCurrentResources(controller)
-  #puts currentAgentResources
-  setOmsAgentResources(currentAgentResources, configMapSettings, controller)
+if !configMapSettings.nil?
+  controller = ENV["CONTROLLER_TYPE"]
+  if !controller.nil?
+    currentAgentResources = getCurrentResources(controller)
+    #puts currentAgentResources
+    # setOmsAgentResources(currentAgentResources, configMapSettings, controller)
+    validateConfigMap(configMapSettings, controller)
+  end
+else
+  if !controller.nil?
+    resourcesToSet = getDefaultResources(controller)
+  else
+    puts "config::error::Cannot set resources on the pod since the controller type is nil"
+  end
 end

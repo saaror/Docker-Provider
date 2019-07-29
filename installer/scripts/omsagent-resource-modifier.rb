@@ -46,6 +46,7 @@ def getRequestsAndLimits(response)
   hasResourceKey = false
   begin
     if !response.nil? && !response.body.nil? && !response.body.empty?
+      puts "config::Parsing requests and limits for the pod"
       omsAgentResource = JSON.parse(response.body)
       if !omsAgentResource.nil? &&
          !omsAgentResource["spec"].nil? &&
@@ -79,10 +80,10 @@ end
 def getCurrentResourcesDs
   begin
     currentResources = {}
-    puts "config::info::Getting current resources for the daemonset"
+    puts "config::Getting current resources for the daemonset"
     # Make kube api query to get the daemonset resource and get current requests and limits
     response = KubernetesApiClient.getKubeResourceInfo(@daemonset)
-    responseHash, currentResources = getRequestsAndLimits(response)
+    responseHash, currentResources, hasResourceKey = getRequestsAndLimits(response)
     #Return current daemonset resource and a hash of the current resources
     return responseHash, currentResources
   rescue => errorStr
@@ -95,10 +96,10 @@ end
 def getCurrentResourcesRs
   begin
     currentResources = {}
-    puts "config::info::Getting current resources for the replicaset"
+    puts "config::Getting current resources for the replicaset"
     # Make kube api query to get the replicaset resource and get current requests and limits
     response = KubernetesApiClient.getKubeResourceInfo(@replicaset)
-    responseHash, currentResources = getRequestsAndLimits(response)
+    responseHash, currentResources, hasResourceKey = getRequestsAndLimits(response)
     #Return current replicaset resource and a hash of the current resources
     return responseHash, currentResources
   rescue => errorStr
@@ -155,7 +156,7 @@ def getNewResourcesDs(parsedConfig)
     configMapResources = {}
     if !parsedConfig[:resource_settings].nil? &&
        !parsedConfig[:resource_settings][:omsagent].nil?
-      puts "config::info::Reading custom settings for omsagent from the config map"
+      puts "config::Reading custom settings for omsagent from the config map"
       customCpuLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuLimit]
       customMemoryLimit = parsedConfig[:resource_settings][:omsagent][:omsAgentMemLimit]
       customCpuRequest = parsedConfig[:resource_settings][:omsagent][:omsAgentCpuRequest]
@@ -168,7 +169,7 @@ def getNewResourcesDs(parsedConfig)
       configMapResources["memoryRequests"] = isMemoryResourceValid(customMemoryRequest) ? customMemoryRequest : @defaultOmsAgentMemRequest
     else
       # If config map doesnt contain omsagent key
-      puts "config::info::omsagent key not present in the config map, Using defaults"
+      puts "config::omsagent key not present in the config map, Using defaults"
       configMapResources = getDefaultResourcesDs
     end
     return configMapResources
@@ -183,7 +184,7 @@ def getNewResourcesRs(parsedConfig)
     configMapResources = {}
     if !parsedConfig[:resource_settings].nil? &&
        !parsedConfig[:resource_settings][:omsagentRs].nil?
-      puts "config::info::Reading custom settings for omsagent from the config map"
+      puts "config::Reading custom settings for omsagent from the config map"
       customCpuLimit = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsCpuLimit]
       customMemoryLimit = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsMemLimit]
       customCpuRequest = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsCpuRequest]
@@ -196,7 +197,7 @@ def getNewResourcesRs(parsedConfig)
       configMapResources["memoryRequests"] = isMemoryResourceValid(customMemoryRequest) ? customMemoryRequest : @defaultOmsAgentRsMemRequest
     else
       # If config map doesnt contain omsagentRs key
-      puts "config::info::omsagentRs key not present in the config map, Using defaults"
+      puts "config::omsagentRs key not present in the config map, Using defaults"
       configMapResources = getDefaultResourcesRs
     end
     return configMapResources
@@ -206,9 +207,9 @@ def getNewResourcesRs(parsedConfig)
   end
 end
 
-def updateResources(currentAgentResources, newResources)
+def isUpdateResources(currentAgentResources, newResources)
   begin
-    puts "config::info::Checking to see if the new resources are different from current resources"
+    puts "config::Checking to see if the new resources are different from current resources"
     # Check to see if any of the resources are not same
     if currentAgentResources["cpuLimits"] == newResources["cpuLimits"] &&
        currentAgentResources["memoryLimits"] == newResources["memoryLimits"] &&
@@ -250,19 +251,6 @@ end
 
 # Parse config map to get new settings for daemonset and replicaset
 configMapSettings = parseConfigMap(@cpuMemConfigMapMountPath)
-# if !configMapSettings.nil?
-#   puts "config::info::config map mounted for custom cpu and memory, using custom settings"
-#   newResourcesDs = getNewResourcesDs(configMapSettings)
-#   newResourcesRs = getNewResourcesRs(configMapSettings)
-# else
-#   puts "config::info::config map not mounted for custom cpu and memory, using defaults"
-#   newResourcesDs = getDefaultResourcesDs
-#   newResourcesRs = getDefaultResourcesRs
-# end
-
-# # Get current resource requests and limits for daemonset and replicaset
-# responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = getCurrentResourcesDs
-# responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = getCurrentResourcesRs
 
 #Parse config map to enable/disable plugin to retry set resources on daemonset/replicaset
 pluginConfig = parseConfigMap(@resourceUpdatePluginPath)
@@ -272,8 +260,7 @@ if !pluginConfig.nil? && !pluginConfig[:enable_plugin].nil? && pluginConfig[:ena
 end
 
 # Check and update daemonset resources if unset or config map applied
-puts "config::Current daemonset resources are either empty or different from new resources, updating"
-
+puts "****************Begin Daemonset Resource Config Processing********************"
 if !configMapSettings.nil?
   puts "config::config map mounted for custom cpu and memory, using custom settings for daemonset"
   newResourcesDs = getNewResourcesDs(configMapSettings)
@@ -289,7 +276,7 @@ responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = getCurrentResourcesD
 dsCurrentResNilCheck = areAgentResourcesNilOrEmpty(currentAgentResourcesDs)
 if !dsCurrentResNilCheck
   # Compare existing and new resources and update if necessary
-  updateDs = updateResources(currentAgentResourcesDs, newResourcesDs)
+  updateDs = isUpdateResources(currentAgentResourcesDs, newResourcesDs)
 else
   # Current resources are empty
   updateDs = true
@@ -318,7 +305,9 @@ if !updateDs.nil? && updateDs == true
 else
   puts "config::Current daemonset resources are the same as new resources, no update required"
 end
+puts "****************End Daemonset Resource Config Processing***********************"
 
+puts "****************Begin Replicaset Resource Config Processing********************"
 # Check and update replicaset resources if unset or config map applied
 if !configMapSettings.nil?
   puts "config::config map mounted for custom cpu and memory, using custom settings for replicaset"
@@ -335,7 +324,7 @@ responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = getCurrentResourcesR
 rsCurrentResNilCheck = areAgentResourcesNilOrEmpty(currentAgentResourcesRs)
 if !rsCurrentResNilCheck
   # Compare existing and new resources and update if necessary
-  updateRs = updateResources(currentAgentResourcesRs, newResourcesRs)
+  updateRs = isUpdateResources(currentAgentResourcesRs, newResourcesRs)
 else
   # Current resources are empty
   updateRs = true
@@ -364,3 +353,4 @@ if !updateRs.nil? && updateRs == true
 else
   puts "config::Current replicaset resources are the same as new resources, no update required"
 end
+puts "****************End Replicaset Resource Config Processing********************"

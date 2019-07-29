@@ -132,7 +132,7 @@ class KubernetesApiClient
           kubeApiRequest["Content-Type"] = "application/json"
           kubeApiRequest.body = resourceJson
           @Log.info "KubernetesAPIClient::updateOmsAgentPod #{podType} : Making put request to #{uri.request_uri} @ #{Time.now.utc.iso8601}"
-          response = http.request(kubeApiRequest)
+          #response = http.request(kubeApiRequest)
           @Log.info "KubernetesAPIClient::updateOmsAgentPod : Got response of #{response.code} for #{uri.request_uri} @ #{Time.now.utc.iso8601}"
         end
       rescue => error

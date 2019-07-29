@@ -27,11 +27,25 @@ class KubernetesApiClient
   @@TokenStr = nil
   @@NodeMetrics = Hash.new
   @@WinNodeArray = []
+  @@replicaset = "replicaset"
+  @@daemonset = "daemonset"
 
   def initialize
   end
 
   class << self
+    def getHttpClient(uri)
+      http = Net::HTTP.new(uri.host, uri.port)
+      http.use_ssl = true
+      if !File.exist?(@@CaFile)
+        raise "#{@@CaFile} doesnt exist"
+      else
+        http.ca_file = @@CaFile if File.exist?(@@CaFile)
+      end
+      http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+      return http
+    end
+
     def getKubeResourceInfo(resource)
       headers = {}
       response = nil
@@ -41,14 +55,15 @@ class KubernetesApiClient
         resourceUri = getResourceUri(resource)
         if !resourceUri.nil?
           uri = URI.parse(resourceUri)
-          http = Net::HTTP.new(uri.host, uri.port)
-          http.use_ssl = true
-          if !File.exist?(@@CaFile)
-            raise "#{@@CaFile} doesnt exist"
-          else
-            http.ca_file = @@CaFile if File.exist?(@@CaFile)
-          end
-          http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+          # http = Net::HTTP.new(uri.host, uri.port)
+          # http.use_ssl = true
+          # if !File.exist?(@@CaFile)
+          #   raise "#{@@CaFile} doesnt exist"
+          # else
+          #   http.ca_file = @@CaFile if File.exist?(@@CaFile)
+          # end
+          # http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+          http = getHttpClient(uri)
 
           kubeApiRequest = Net::HTTP::Get.new(uri.request_uri)
           kubeApiRequest["Authorization"] = "Bearer " + getTokenStr
@@ -97,6 +112,16 @@ class KubernetesApiClient
       end
     rescue => error
       @Log.warn("getResourceUri failed: #{error}")
+    end
+
+    def updateOmsagentPod(podType, resourceJson)
+      begin
+        if podType == @@daemonset
+        elsif podType == @@replicaset
+        end
+      rescue => error
+        @Log.warn("updateOmsagentPod failed: #{error}")
+      end
     end
 
     def getClusterName

@@ -40,8 +40,10 @@ end
 
 #Get current requests and limits for daemonset/replicaset
 def getRequestsAndLimits(response)
+  currentResources = {}
+  omsAgentResource = {}
+  hasResourceKey = false
   begin
-    currentResources = {}
     if !response.nil? && !response.body.nil? && !response.body.empty?
       omsAgentResource = JSON.parse(response.body)
       if !omsAgentResource.nil? &&
@@ -51,6 +53,8 @@ def getRequestsAndLimits(response)
          !omsAgentResource["spec"]["template"]["spec"]["containers"].nil? &&
          !omsAgentResource["spec"]["template"]["spec"]["containers"][0].nil? &&
          !omsAgentResource["spec"]["template"]["spec"]["containers"][0]["resources"].nil?
+        # Setting hasResourceKey to true because we might use this to update the pod later
+        hasResourceKey = true
         resources = omsAgentResource["spec"]["template"]["spec"]["containers"][0]["resources"]
         if !resources["limits"].nil?
           currentResources["cpuLimits"] = resources["limits"]["cpu"]
@@ -64,10 +68,10 @@ def getRequestsAndLimits(response)
         puts "config::error::Error while processing the response for omsagent(ds/rs) : expected json key is nil"
       end
     end
-    return currentResources
   rescue => errorStr
     puts "config::error::Error while processing the response for omsagent(ds/rs) resource for requests and limits : #{errorStr}"
   end
+  return omsAgentResource, currentResources, hasResourceKey
 end
 
 #Get the resources for daemonset
@@ -76,9 +80,9 @@ def getCurrentResourcesDs
     currentResources = {}
     # Make kube api query to get the daemonset resource and get current requests and limits
     response = KubernetesApiClient.getKubeResourceInfo("omsagent")
-    currentResources = getRequestsAndLimits(response)
-    #returning a hash of the current resources
-    return currentResources
+    responseHash, currentResources = getRequestsAndLimits(response)
+    #Return current daemonset resource and a hash of the current resources
+    return responseHash, currentResources
   rescue => errorStr
     puts "config::error::Exception while getting current resources for the daemonset: #{errorStr}, using defaults"
     return nil
@@ -91,9 +95,9 @@ def getCurrentResourcesRs
     currentResources = {}
     # Make kube api query to get the replicaset resource and get current requests and limits
     response = KubernetesApiClient.getKubeResourceInfo("omsagent-rs")
-    currentResources = getRequestsAndLimits(response)
-    #returning a hash of the current resources
-    return currentResources
+    responseHash, currentResources = getRequestsAndLimits(response)
+    #Return current replicaset resource and a hash of the current resources
+    return responseHash, currentResources
   rescue => errorStr
     puts "config::error::Exception while getting current resources for the replicaset : #{errorStr}, using defaults"
     return nil
@@ -223,21 +227,53 @@ else
 end
 
 # Get current resource requests and limits for daemonset and replicaset
-currentAgentResourcesDs = getCurrentResourcesDs
-currentAgentResourcesRs = getCurrentResourcesRs
+responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = getCurrentResourcesDs
+responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = getCurrentResourcesRs
 
-if !currentAgentResourcesDs.nil? && !currentAgentResourcesDs.empty?
-  # Compare existing and new resources and update if necessary
-  updateDs = updateResources(currentAgentResourcesDs, newResourcesDs)
+if !currentAgentResourcesDs.nil?
+  if !currentAgentResourcesDs.empty? &&
+     !currentAgentResourcesDs["cpuLimits"].nil? &&
+     !currentAgentResourcesDs["memoryLimits"].nil? &&
+     !currentAgentResourcesDs["cpuRequests"].nil? &&
+     currentAgentResourcesDs["memoryRequests"].nil?
+    # Compare existing and new resources and update if necessary
+    updateDs = updateResources(currentAgentResourcesDs, newResourcesDs)
+  else
+    # Current resources are empty
+    updateDs = true
+  end
   if !updateDs.nil? && updateDs == true
-    # Update omsagent daemonset with new values
+    # Create hash with new resource values
+    newLimithash = {"cpu" => newResourcesDs["cpuLimits"], "memory" => newResourcesDs["memoryLimits"]}
+    newRequesthash = {"cpu" => newResourcesDs["cpuRequests"], "memory" => newResourcesDs["memoryRequests"]}
+    if hasResourceKeyDs == true
+      # Update the limits and requests for daemonset
+      responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
+      responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
+    end
   end
 end
 
 if !currentAgentResourcesRs.nil? && !currentAgentResourcesRs.empty?
-  # Compare existing and new resources and update if necessary
-  updateRs = updateResources(currentAgentResourcesRs, newResourcesRs)
+  if !currentAgentResourcesRs.empty? &&
+     !currentAgentResourcesRs["cpuLimits"].nil? &&
+     !currentAgentResourcesRs["memoryLimits"].nil? &&
+     !currentAgentResourcesRs["cpuRequests"].nil? &&
+     currentAgentResourcesRs["memoryRequests"].nil?
+    # Compare existing and new resources and update if necessary
+    updateRs = updateResources(currentAgentResourcesRs, newResourcesRs)
+  else
+    # Current resources are empty
+    updateRs = true
+  end
   if !updateRs.nil? && updateRs == true
-    # Update omsagent replicaset with new values
+    # Create hash with new resource values
+    newLimithash = {"cpu" => newResourcesRs["cpuLimits"], "memory" => newResourcesRs["memoryLimits"]}
+    newRequesthash = {"cpu" => newResourcesRs["cpuRequests"], "memory" => newResourcesRs["memoryRequests"]}
+    if hasResourceKeyRs == true
+      # Update the limits and requests for replicaset
+      responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
+      responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
+    end
   end
 end

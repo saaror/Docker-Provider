@@ -97,9 +97,9 @@ class KubernetesApiClient
       begin
         if ENV["KUBERNETES_SERVICE_HOST"] && ENV["KUBERNETES_PORT_443_TCP_PORT"]
           # Uri to get omsagent daemonset/deployment to check the current cpu and memory resources
-          if resource == "omsagent"
+          if resource == @@daemonset
             return "https://#{ENV["KUBERNETES_SERVICE_HOST"]}:#{ENV["KUBERNETES_PORT_443_TCP_PORT"]}/apis/apps/" + @@daemonsetApiVersion + "/namespaces/kube-system/daemonsets/omsagent"
-          elsif resource == "omsagent-rs"
+          elsif resource == @@replicaset
             return "https://#{ENV["KUBERNETES_SERVICE_HOST"]}:#{ENV["KUBERNETES_PORT_443_TCP_PORT"]}/apis/apps/" + @@deploymentApiVersion + "/namespaces/kube-system/deployments/omsagent-rs"
           else
             # Default resource uri
@@ -115,13 +115,30 @@ class KubernetesApiClient
     end
 
     def updateOmsagentPod(podType, resourceJson)
+      response = nil
+      @Log.info "Updating omsagent pod : #{podType}"
       begin
         if podType == @@daemonset
+          resourceUri = getResourceUri(@@daemonset)
         elsif podType == @@replicaset
+          resourceUri = getResourceUri(@@daemonset)
+        end
+        if !resourceUri.nil?
+          uri = URI.parse(resourceUri)
+          http = getHttpClient(uri)
+
+          kubeApiRequest = Net::HTTP::Put.new(uri.request_uri)
+          kubeApiRequest["Authorization"] = "Bearer " + getTokenStr
+          kubeApiRequest["Content-Type"] = "application/json"
+          kubeApiRequest.body = resourceJson
+          @Log.info "KubernetesAPIClient::updateOmsAgentPod #{podType} : Making put request to #{uri.request_uri} @ #{Time.now.utc.iso8601}"
+          response = http.request(kubeApiRequest)
+          @Log.info "KubernetesAPIClient::updateOmsAgentPod : Got response of #{response.code} for #{uri.request_uri} @ #{Time.now.utc.iso8601}"
         end
       rescue => error
-        @Log.warn("updateOmsagentPod failed: #{error}")
+        @Log.warn("kubernetes api request in updateOmsagentPod to update omsagent pod failed: #{error} for #{podType} @ #{Time.now.utc.iso8601}")
       end
+      return response
     end
 
     def getClusterName

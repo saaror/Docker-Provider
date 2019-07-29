@@ -6,6 +6,7 @@ require_relative "tomlrb"
 require_relative "microsoft/omsagent/plugin/KubernetesApiClient"
 
 @cpuMemConfigMapMountPath = "/etc/config/settings/custom-resource-settings"
+@resourceUpdatePluginPath = "/etc/config/settings/omsagent-resource-set-plugin"
 @replicaset = "replicaset"
 @daemonset = "daemonset"
 
@@ -20,20 +21,20 @@ require_relative "microsoft/omsagent/plugin/KubernetesApiClient"
 @defaultOmsAgentRsMemRequest = "175Mi"
 
 # Use parser to parse the configmap toml file to a ruby structure
-def parseConfigMap
+def parseConfigMap(filePath)
   begin
     # Check to see if config map is created
-    if (File.file?(@cpuMemConfigMapMountPath))
-      puts "config::configmap container-azm-ms-agentconfig for settings mounted, parsing values for custom cpu and memory resources"
-      parsedConfig = Tomlrb.load_file(@cpuMemConfigMapMountPath, symbolize_keys: true)
-      puts "config::Successfully parsed mounted custom cpu memory config map"
+    if (File.file?(filePath))
+      puts "config::configmap container-azm-ms-agentconfig for settings mounted, parsing values in path #{filePath}"
+      parsedConfig = Tomlrb.load_file(filePath, symbolize_keys: true)
+      puts "config::Successfully parsed mounted config map"
       return parsedConfig
     else
-      puts "config::configmap container-azm-ms-agentconfig for settings not mounted, using defaults for cpu and memory resources"
+      puts "config::configmap container-azm-ms-agentconfig for settings not mounted, using defaults"
       return nil
     end
   rescue => errorStr
-    puts "config::error::Exception while parsing toml config file for custom cpu and memory config: #{errorStr}, using defaults"
+    puts "config::error::Exception while parsing toml config file for file path: #{filePath}: #{errorStr}, using defaults"
     return nil
   end
 end
@@ -78,8 +79,9 @@ end
 def getCurrentResourcesDs
   begin
     currentResources = {}
+    puts "config::info::Getting current resources for the daemonset"
     # Make kube api query to get the daemonset resource and get current requests and limits
-    response = KubernetesApiClient.getKubeResourceInfo("omsagent")
+    response = KubernetesApiClient.getKubeResourceInfo(@daemonset)
     responseHash, currentResources = getRequestsAndLimits(response)
     #Return current daemonset resource and a hash of the current resources
     return responseHash, currentResources
@@ -93,8 +95,9 @@ end
 def getCurrentResourcesRs
   begin
     currentResources = {}
+    puts "config::info::Getting current resources for the replicaset"
     # Make kube api query to get the replicaset resource and get current requests and limits
-    response = KubernetesApiClient.getKubeResourceInfo("omsagent-rs")
+    response = KubernetesApiClient.getKubeResourceInfo(@replicaset)
     responseHash, currentResources = getRequestsAndLimits(response)
     #Return current replicaset resource and a hash of the current resources
     return responseHash, currentResources
@@ -163,7 +166,8 @@ def getNewResourcesDs(parsedConfig)
       configMapResources["cpuRequests"] = isCpuResourceValid(customCpuRequest) ? customCpuRequest : @defaultOmsAgentCpuRequest
       configMapResources["memoryRequests"] = isMemoryResourceValid(customMemoryRequest) ? customMemoryRequest : @defaultOmsAgentMemRequest
     else
-      # If config map doesnt exist
+      # If config map doesnt contain omsagent key
+      puts "config::info::omsagent key not present in the config map, Using defaults"
       configMapResources = getDefaultResourcesDs
     end
     return configMapResources
@@ -189,7 +193,8 @@ def getNewResourcesRs(parsedConfig)
       configMapResources["cpuRequests"] = isCpuResourceValid(customCpuRequest) ? customCpuRequest : @defaultOmsAgentRsCpuRequest
       configMapResources["memoryRequests"] = isMemoryResourceValid(customMemoryRequest) ? customMemoryRequest : @defaultOmsAgentRsMemRequest
     else
-      # If config map doesnt exist
+      # If config map doesnt contain omsagentRs key
+      puts "config::info::omsagent key not present in the config map, Using defaults"
       configMapResources = getDefaultResourcesRs
     end
     return configMapResources
@@ -201,6 +206,7 @@ end
 
 def updateResources(currentAgentResources, newResources)
   begin
+    puts "config::info::Checking to see if the new resources are different from current resources"
     # Check to see if any of the resources are not same
     if currentAgentResources["cpuLimits"] == newResources["cpuLimits"] &&
        currentAgentResources["memoryLimits"] == newResources["memoryLimits"] &&
@@ -216,12 +222,38 @@ def updateResources(currentAgentResources, newResources)
   end
 end
 
+def areAgentResourcesNilOrEmpty(agentResources)
+  if !agentResources.nil? &&
+     !agentResources.empty? &&
+     !agentResources["cpuLimits"].nil? &&
+     !agentResources["memoryLimits"].nil? &&
+     !agentResources["cpuRequests"].nil? &&
+     !agentResources["memoryRequests"].nil?
+    return false
+  else
+    return true
+  end
+end
+
+def setEnvVariableToEnablePlugin
+  #Set environment variable to enable resource set plugin
+  file = File.open("enable_resource_set_plugin", "w")
+  if !file.nil?
+    file.write("export ENABLE_RESOURCE_SET_PLUGIN=true\n")
+    # Close file after writing all environment variables
+    file.close
+    puts "config::Successfully created environment variable file to enable plugin"
+  end
+end
+
 # Parse config map to get new settings for daemonset and replicaset
-configMapSettings = parseConfigMap
+configMapSettings = parseConfigMap(@cpuMemConfigMapMountPath)
 if !configMapSettings.nil?
+  puts "config::info::config map mounted for custom cpu and memory, using custom settings"
   newResourcesDs = getNewResourcesDs(configMapSettings)
   newResourcesRs = getNewResourcesRs(configMapSettings)
 else
+  puts "config::info::config map not mounted for custom cpu and memory, using defaults"
   newResourcesDs = getDefaultResourcesDs
   newResourcesRs = getDefaultResourcesRs
 end
@@ -230,50 +262,75 @@ end
 responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = getCurrentResourcesDs
 responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = getCurrentResourcesRs
 
-if !currentAgentResourcesDs.nil?
-  if !currentAgentResourcesDs.empty? &&
-     !currentAgentResourcesDs["cpuLimits"].nil? &&
-     !currentAgentResourcesDs["memoryLimits"].nil? &&
-     !currentAgentResourcesDs["cpuRequests"].nil? &&
-     currentAgentResourcesDs["memoryRequests"].nil?
-    # Compare existing and new resources and update if necessary
-    updateDs = updateResources(currentAgentResourcesDs, newResourcesDs)
-  else
-    # Current resources are empty
-    updateDs = true
+#Parse config map to enable/disable plugin to retry set resources on daemonset/replicaset
+pluginConfig = parseConfigMap(@resourceUpdatePluginPath)
+pluginEnabled = false
+if !pluginConfig[:enable_plugin].nil? && pluginConfig[:enable_plugin][:enabled] == true
+  pluginEnabled = true
+end
+
+# Check current daemonset resources and update if its empty or has changed
+dsCurrentResNilCheck = areAgentResourcesNilOrEmpty(currentAgentResourcesDs)
+if !dsCurrentResNilCheck
+  # Compare existing and new resources and update if necessary
+  updateDs = updateResources(currentAgentResourcesDs, newResourcesDs)
+else
+  # Current resources are empty
+  updateDs = true
+end
+if !updateDs.nil? && updateDs == true
+  puts "config::info::Current daemonset resources are either empty or different from new resources, updating"
+  # Create hash with new resource values
+  newLimithash = {"cpu" => newResourcesDs["cpuLimits"], "memory" => newResourcesDs["memoryLimits"]}
+  newRequesthash = {"cpu" => newResourcesDs["cpuRequests"], "memory" => newResourcesDs["memoryRequests"]}
+  if hasResourceKeyDs == true
+    # Update the limits and requests for daemonset
+    responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
+    responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
   end
-  if !updateDs.nil? && updateDs == true
-    # Create hash with new resource values
-    newLimithash = {"cpu" => newResourcesDs["cpuLimits"], "memory" => newResourcesDs["memoryLimits"]}
-    newRequesthash = {"cpu" => newResourcesDs["cpuRequests"], "memory" => newResourcesDs["memoryRequests"]}
-    if hasResourceKeyDs == true
-      # Update the limits and requests for daemonset
-      responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
-      responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
+  # Put request to update daemonset
+  putResponse = KubernetesApiClient.updateOmsagentPod(@daemonset, responseHashDs.to_json)
+  if !putResponse.nil?
+    puts "config::info::Put request to update daemonset resources was successful, new resource values set on daemonset"
+  else
+    #TODO:Add error message
+    puts "config::info::Put request to update daemonset resources failed"
+    if dsCurrentResNilCheck == true && pluginEnabled == true
+      #Set environment variable for plugin to retry in case of empty resources
+      setEnvVariableToEnablePlugin
     end
   end
 end
 
-if !currentAgentResourcesRs.nil? && !currentAgentResourcesRs.empty?
-  if !currentAgentResourcesRs.empty? &&
-     !currentAgentResourcesRs["cpuLimits"].nil? &&
-     !currentAgentResourcesRs["memoryLimits"].nil? &&
-     !currentAgentResourcesRs["cpuRequests"].nil? &&
-     currentAgentResourcesRs["memoryRequests"].nil?
-    # Compare existing and new resources and update if necessary
-    updateRs = updateResources(currentAgentResourcesRs, newResourcesRs)
-  else
-    # Current resources are empty
-    updateRs = true
+# Check current replicaset resources and update if its empty or has changed
+rsCurrentResNilCheck = areAgentResourcesNilOrEmpty(currentAgentResourcesRs)
+if !rsCurrentResNilCheck
+  # Compare existing and new resources and update if necessary
+  updateRs = updateResources(currentAgentResourcesRs, newResourcesRs)
+else
+  # Current resources are empty
+  updateRs = true
+end
+if !updateRs.nil? && updateRs == true
+  puts "config::info::Current replicaset resources are either empty or different from new resources, updating"
+  # Create hash with new resource values
+  newLimithash = {"cpu" => newResourcesRs["cpuLimits"], "memory" => newResourcesRs["memoryLimits"]}
+  newRequesthash = {"cpu" => newResourcesRs["cpuRequests"], "memory" => newResourcesRs["memoryRequests"]}
+  if hasResourceKeyRs == true
+    # Update the limits and requests for replicaset
+    responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
+    responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
   end
-  if !updateRs.nil? && updateRs == true
-    # Create hash with new resource values
-    newLimithash = {"cpu" => newResourcesRs["cpuLimits"], "memory" => newResourcesRs["memoryLimits"]}
-    newRequesthash = {"cpu" => newResourcesRs["cpuRequests"], "memory" => newResourcesRs["memoryRequests"]}
-    if hasResourceKeyRs == true
-      # Update the limits and requests for replicaset
-      responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
-      responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
+  # Put request to update replicaset
+  putResponse = KubernetesApiClient.updateOmsagentPod(@replicaset, responseHashRs.to_json)
+  if !putResponse.nil?
+    puts "config::info::Put request to update replicaset resources was successful, new resource values set on replicaset"
+  else
+    #TODO:Add error message
+    puts "config::info::Put request to update replicaset resources failed"
+    if rsCurrentResNilCheck == true && pluginEnabled == true
+      #Set environment variable for plugin to retry in case of empty resources
+      setEnvVariableToEnablePlugin
     end
   end
 end

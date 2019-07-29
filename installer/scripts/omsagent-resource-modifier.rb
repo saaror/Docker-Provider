@@ -293,7 +293,6 @@ if !updateDs.nil? && updateDs == true
   if !putResponse.nil?
     puts "config::info::Put request to update daemonset resources was successful, new resource values set on daemonset"
   else
-    #TODO:Add error message
     puts "config::info::Put request to update daemonset resources failed"
     if dsCurrentResNilCheck == true && pluginEnabled == true
       #Set environment variable for plugin to retry in case of empty resources
@@ -326,7 +325,6 @@ if !updateRs.nil? && updateRs == true
   if !putResponse.nil?
     puts "config::info::Put request to update replicaset resources was successful, new resource values set on replicaset"
   else
-    #TODO:Add error message
     puts "config::info::Put request to update replicaset resources failed"
     if rsCurrentResNilCheck == true && pluginEnabled == true
       #Set environment variable for plugin to retry in case of empty resources

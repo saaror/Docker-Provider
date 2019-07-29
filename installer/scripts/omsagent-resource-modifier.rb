@@ -91,7 +91,7 @@ def getCurrentResourcesRs
     currentResources = {}
     # Make kube api query to get the replicaset resource and get current requests and limits
     response = KubernetesApiClient.getKubeResourceInfo("omsagent-rs")
-    currentResourcesRs = getRequestsAndLimits(response)
+    currentResources = getRequestsAndLimits(response)
     #returning a hash of the current resources
     return currentResources
   rescue => errorStr
@@ -195,6 +195,23 @@ def getNewResourcesRs(parsedConfig)
   end
 end
 
+def updateResources(currentAgentResources, newResources)
+  begin
+    # Check to see if any of the resources are not same
+    if currentAgentResources["cpuLimits"] == newResources["cpuLimits"] &&
+       currentAgentResources["memoryLimits"] == newResources["memoryLimits"] &&
+       currentAgentResources["cpuRequests"] == newResources["cpuRequests"] &&
+       currentAgentResources["memoryRequests"] == newResources["memoryRequests"]
+      return false
+    else
+      return true
+    end
+  rescue => errorStr
+    puts "config::error::Exception while comparing resources for daemonset/replicaset: #{errorStr}, skipping resource update"
+    return nil
+  end
+end
+
 # Parse config map to get new settings for daemonset and replicaset
 configMapSettings = parseConfigMap
 if !configMapSettings.nil?
@@ -210,9 +227,17 @@ currentAgentResourcesDs = getCurrentResourcesDs
 currentAgentResourcesRs = getCurrentResourcesRs
 
 if !currentAgentResourcesDs.nil? && !currentAgentResourcesDs.empty?
-  # Logic to compare existing and new and update
+  # Compare existing and new resources and update if necessary
+  updateDs = updateResources(currentAgentResourcesDs, newResourcesDs)
+  if !updateDs.nil? && updateDs == true
+    # Update omsagent daemonset with new values
+  end
 end
 
 if !currentAgentResourcesRs.nil? && !currentAgentResourcesRs.empty?
-  # Logic to compare existing and new and update
+  # Compare existing and new resources and update if necessary
+  updateRs = updateResources(currentAgentResourcesRs, newResourcesRs)
+  if !updateRs.nil? && updateRs == true
+    # Update omsagent replicaset with new values
+  end
 end

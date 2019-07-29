@@ -85,7 +85,7 @@ def getCurrentResourcesDs
     response = KubernetesApiClient.getKubeResourceInfo(@daemonset)
     responseHash, currentResources, hasResourceKey = getRequestsAndLimits(response)
     #Return current daemonset resource and a hash of the current resources
-    return responseHash, currentResources
+    return responseHash, currentResources, hasResourceKey
   rescue => errorStr
     puts "config::error::Exception while getting current resources for the daemonset: #{errorStr}, using defaults"
     return nil
@@ -101,7 +101,7 @@ def getCurrentResourcesRs
     response = KubernetesApiClient.getKubeResourceInfo(@replicaset)
     responseHash, currentResources, hasResourceKey = getRequestsAndLimits(response)
     #Return current replicaset resource and a hash of the current resources
-    return responseHash, currentResources
+    return responseHash, currentResources, hasResourceKey
   rescue => errorStr
     puts "config::error::Exception while getting current resources for the replicaset : #{errorStr}, using defaults"
     return nil
@@ -184,7 +184,7 @@ def getNewResourcesRs(parsedConfig)
     configMapResources = {}
     if !parsedConfig[:resource_settings].nil? &&
        !parsedConfig[:resource_settings][:omsagentRs].nil?
-      puts "config::Reading custom settings for omsagent from the config map"
+      puts "config::Reading custom settings for omsagentRs from the config map"
       customCpuLimit = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsCpuLimit]
       customMemoryLimit = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsMemLimit]
       customCpuRequest = parsedConfig[:resource_settings][:omsagentRs][:omsAgentRsCpuRequest]
@@ -292,6 +292,7 @@ if !updateDs.nil? && updateDs == true
     responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
   end
   # Put request to update daemonset
+  puts responseHashDs.to_json
   putResponse = KubernetesApiClient.updateOmsagentPod(@daemonset, responseHashDs.to_json)
   if !putResponse.nil?
     puts "config::Put request to update daemonset resources was successful, new resource values set on daemonset"

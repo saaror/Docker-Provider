@@ -41,72 +41,59 @@ module Fluent
       end
     end
 
-    def enumerate
-      $log.info("in_omsagent_default_resource_setter::enumerate : Getting services from Kube API @ #{Time.now.utc.iso8601}")
-
-      resourceSetPluginEnabled = ENV["AZMON_ENABLE_RESOURCE_SET_PLUGIN"]
-      if !resourceSetPluginEnabled.nil? && !resourceSetPluginEnabled.empty? && resourceSetPluginEnabled.casecmp("true") == 0
-        $log.info("in_omsagent_default_resource_setter: Env variable AZMON_ENABLE_RESOURCE_SET_PLUGIN set to true, checking if resources are set")
-        # Parse config map to get new settings for daemonset and replicaset
-        configMapSettings = ResourceModifierHelper.getConfigMapSettings
-
-        # Get current resource requests and limits for daemonset
-        responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = ResourceModifierHelper.getCurrentResourcesDs
-        dsCurrentResNilCheck = ResourceModifierHelper.areAgentResourcesNilOrEmpty(currentAgentResourcesDs)
-        if !dsCurrentResNilCheck
-          # Compare existing and new resources and update if necessary
-          #   updateDs = isUpdateResources(currentAgentResourcesDs, newResourcesDs)
-          # else
-          #   # Current resources are empty
-          #   updateDs = true
-          # end
-          # if !updateDs.nil? && updateDs == true
-          $log.info("One or all of current daemonset resources are empty, updating")
-          newResourcesDs = ResourceModifierHelper.validateConfigMapAndGetNewResourcesDs(configMapSettings)
-          putResponse = ResourceModifierHelper.updateDsWithNewResources(newResourcesDs, hasResourceKeyDs, responseHashDs)
-
-          if !putResponse.nil?
-            puts "config::Put request to update daemonset resources was successful, new resource values set on daemonset"
-          else
-            puts "config::Put request to update daemonset resources failed"
-            if dsCurrentResNilCheck == true && pluginEnabled == true
-              #Set environment variable for plugin to retry in case of empty resources
-              setEnvVariableToEnablePlugin
-            end
-          end
-        else
-          puts "config::Current daemonset resources are the same as new resources, no update required"
-        end
-      end
-
-      serviceList = JSON.parse(KubernetesApiClient.getKubeResourceInfo("services").body)
-      $log.info("in_kube_services::enumerate : Done getting services from Kube API @ #{Time.now.utc.iso8601}")
+    def updateResources
       begin
-        if (!serviceList.empty?)
-          eventStream = MultiEventStream.new
-          serviceList["items"].each do |items|
-            record = {}
-            record["CollectionTime"] = batchTime #This is the time that is mapped to become TimeGenerated
-            record["ServiceName"] = items["metadata"]["name"]
-            record["Namespace"] = items["metadata"]["namespace"]
-            record["SelectorLabels"] = [items["spec"]["selector"]]
-            record["ClusterId"] = KubernetesApiClient.getClusterId
-            record["ClusterName"] = KubernetesApiClient.getClusterName
-            record["ClusterIP"] = items["spec"]["clusterIP"]
-            record["ServiceType"] = items["spec"]["type"]
-            #<TODO> : Add ports and status fields
-            wrapper = {
-              "DataType" => "KUBE_SERVICES_BLOB",
-              "IPName" => "ContainerInsights",
-              "DataItems" => [record.each { |k, v| record[k] = v }],
-            }
-            eventStream.add(emitTime, wrapper) if wrapper
+        $log.info("in_omsagent_default_resource_setter::enumerate : Getting services from Kube API @ #{Time.now.utc.iso8601}")
+
+        resourceSetPluginEnabled = ENV["AZMON_ENABLE_RESOURCE_SET_PLUGIN"]
+        if !resourceSetPluginEnabled.nil? && !resourceSetPluginEnabled.empty? && resourceSetPluginEnabled.casecmp("true") == 0
+          $log.info("in_omsagent_default_resource_setter: Env variable AZMON_ENABLE_RESOURCE_SET_PLUGIN set to true")
+
+          # Parse config map to get new settings for daemonset and replicaset
+          configMapSettings = ResourceModifierHelper.getConfigMapSettings
+
+          # Get current resource requests and limits for daemonset
+          $log.info("in_omsagent_default_resource_setter:Checking daemonset resources")
+          responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = ResourceModifierHelper.getCurrentResourcesDs
+          dsCurrentResNilCheck = ResourceModifierHelper.areAgentResourcesNilOrEmpty(currentAgentResourcesDs)
+
+          # Trigger update only if current daemonset resources are empty
+          if !dsCurrentResNilCheck
+            $log.info("in_omsagent_default_resource_setter:One or all of current daemonset resources are empty, updating")
+            newResourcesDs = ResourceModifierHelper.validateConfigMapAndGetNewResourcesDs(configMapSettings)
+            putResponse = ResourceModifierHelper.updateDsWithNewResources(newResourcesDs, hasResourceKeyDs, responseHashDs)
+
+            if !putResponse.nil?
+              $log.info("in_omsagent_default_resource_setter:Put request to update daemonset resources was successful, new resource values set on daemonset")
+            else
+              $log.info("in_omsagent_default_resource_setter:Put request to update daemonset resources failed")
+            end
+          else
+            $log.info("in_omsagent_default_resource_setter:Daemonset resources not empty, skipping daemonset update")
           end
-          router.emit_stream(@tag, eventStream) if eventStream
+
+          # Get current resource requests and limits for replicaset
+          $log.info("in_omsagent_default_resource_setter:Checking replicaset resources")
+          responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = ResourceModifierHelper.getCurrentResourcesRs
+          rsCurrentResNilCheck = ResourceModifierHelper.areAgentResourcesNilOrEmpty(currentAgentResourcesRs)
+
+          # Trigger update only if current replicaset resources are empty
+          if !rsCurrentResNilCheck
+            $log.info("in_omsagent_default_resource_setter:One or all of current replicaset resources are empty, updating")
+            newResourcesRs = ResourceModifierHelper.validateConfigMapAndGetNewResourcesRs(configMapSettings)
+            putResponse = ResourceModifierHelper.updateRsWithNewResources(newResourcesRs, hasResourceKeyRs, responseHashRs)
+
+            if !putResponse.nil?
+              $log.info("in_omsagent_default_resource_setter:Put request to update replicaset resources was successful, new resource values set on replicaset")
+            else
+              $log.info("in_omsagent_default_resource_setter:Put request to update replicaset resources failed")
+            end
+          else
+            $log.info("in_omsagent_default_resource_setter:Replicaset resources not empty, skipping replicaset update")
+          end
         end
       rescue => errorStr
-        $log.debug_backtrace(errorStr.backtrace)
-        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+        $log.warn("in_omsagent_default_resource_setter::updateResources:error : #{errorStr}")
       end
     end
 

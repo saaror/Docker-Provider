@@ -44,7 +44,7 @@ def setEnvVariableToEnablePlugin
   #Set environment variable to enable resource set plugin
   file = File.open("enable_resource_set_plugin", "w")
   if !file.nil?
-    file.write("export ENABLE_RESOURCE_SET_PLUGIN=true\n")
+    file.write("export AZMON_ENABLE_RESOURCE_SET_PLUGIN=\"true\"\n")
     # Close file after writing all environment variables
     file.close
     puts "config::Successfully created environment variable file to enable plugin"
@@ -52,7 +52,7 @@ def setEnvVariableToEnablePlugin
 end
 
 # Parse config map to get new settings for daemonset and replicaset
-configMapSettings = getConfigMapSettings
+configMapSettings = ResourceModifierHelper.getConfigMapSettings
 
 #Parse config map to enable/disable plugin to retry set resources on daemonset/replicaset
 pluginConfig = parseConfigMap(@resourceUpdatePluginPath)
@@ -65,7 +65,7 @@ end
 puts "****************Begin Daemonset Resource Config Processing********************"
 newResourcesDs = ResourceModifierHelper.validateConfigMapAndGetNewResourcesDs(configMapSettings)
 
-# Get current resource requests and limits for daemonset and replicaset
+# Get current resource requests and limits for daemonset
 responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = ResourceModifierHelper.getCurrentResourcesDs
 
 # Check current daemonset resources and update if its empty or has changed
@@ -98,7 +98,7 @@ puts "****************End Daemonset Resource Config Processing******************
 puts "****************Begin Replicaset Resource Config Processing********************"
 newResourcesRs = ResourceModifierHelper.validateConfigMapAndGetNewResourcesRs(configMapSettings)
 
-# Get current resource requests and limits for daemonset and replicaset
+# Get current resource requests and limits for replicaset
 responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = ResourceModifierHelper.getCurrentResourcesRs
 
 # Check current replicaset resources and update if its empty or has changed

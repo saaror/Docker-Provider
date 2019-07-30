@@ -5,7 +5,6 @@ class ResourceModifierHelper
   require "json"
   require_relative "microsoft/omsagent/plugin/KubernetesApiClient"
   require_relative "tomlrb"
-  require_relative "microsoft/omsagent/plugin/KubernetesApiClient"
 
   @replicaset = "replicaset"
   @daemonset = "daemonset"
@@ -262,10 +261,10 @@ class ResourceModifierHelper
     def areAgentResourcesNilOrEmpty(agentResources)
       if !agentResources.nil? &&
          !agentResources.empty? &&
-         !agentResources["cpuLimits"].nil? &&
-         !agentResources["memoryLimits"].nil? &&
-         !agentResources["cpuRequests"].nil? &&
-         !agentResources["memoryRequests"].nil?
+         !agentResources["cpuLimits"].nil? && !agentResources["cpuLimits"].empty? &&
+         !agentResources["memoryLimits"].nil? && !agentResources["memoryLimits"].empty? &&
+         !agentResources["cpuRequests"].nil? && !agentResources["cpuRequests"].empty? &&
+         !agentResources["memoryRequests"].nil? && !agentResources["memoryRequests"].empty?
         return false
       else
         return true

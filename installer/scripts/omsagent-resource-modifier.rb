@@ -249,8 +249,75 @@ def setEnvVariableToEnablePlugin
   end
 end
 
+def getConfigMapSettings
+  # Parse config map to get new settings for daemonset and replicaset
+  return parseConfigMap(@cpuMemConfigMapMountPath)
+end
+
+def validateDsConfigMapSettings(configMapSettings)
+  if !configMapSettings.nil?
+    puts "config::config map mounted for custom cpu and memory, using custom settings for daemonset"
+    newResourcesDs = getNewResourcesDs(configMapSettings)
+  else
+    puts "config::config map not mounted for custom cpu and memory, using defaults for daemonset"
+    newResourcesDs = getDefaultResourcesDs
+  end
+  return newResourcesDs
+end
+
+def validateRsConfigMapSettings(configMapSettings)
+  if !configMapSettings.nil?
+    puts "config::config map mounted for custom cpu and memory, using custom settings for replicaset"
+    newResourcesRs = getNewResourcesRs(configMapSettings)
+  else
+    puts "config::config map not mounted for custom cpu and memory, using defaults for replicaset"
+    newResourcesRs = getDefaultResourcesRs
+  end
+  return newResourcesRs
+end
+
+def updateDsWithNewResources(newResourcesDs, hasResourceKeyDs, responseHashDs)
+  putResponse = nil
+  begin
+    # Create hash with new resource values
+    newLimithash = {"cpu" => newResourcesDs["cpuLimits"], "memory" => newResourcesDs["memoryLimits"]}
+    newRequesthash = {"cpu" => newResourcesDs["cpuRequests"], "memory" => newResourcesDs["memoryRequests"]}
+    if hasResourceKeyDs == true
+      # Update the limits and requests for daemonset
+      responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
+      responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
+    end
+    # Put request to update daemonset
+    # puts responseHashDs.to_json
+    putResponse = KubernetesApiClient.updateOmsagentPod(@daemonset, responseHashDs.to_json)
+  rescue => errorStr
+    puts "config::error::Error while updating daemonset with new resource values"
+  end
+  return putResponse
+end
+
+def updateRsWithNewResources(newResourcesRs, hasResourceKeyRs, responseHashRs)
+  putResponse = nil
+  begin
+    # Create hash with new resource values
+    newLimithash = {"cpu" => newResourcesRs["cpuLimits"], "memory" => newResourcesRs["memoryLimits"]}
+    newRequesthash = {"cpu" => newResourcesRs["cpuRequests"], "memory" => newResourcesRs["memoryRequests"]}
+    if hasResourceKeyRs == true
+      # Update the limits and requests for daemonset
+      responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
+      responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
+    end
+    # Put request to update daemonset
+    # puts responseHashDs.to_json
+    putResponse = KubernetesApiClient.updateOmsagentPod(@replicaset, responseHashRs.to_json)
+  rescue => errorStr
+    puts "config::error::Error while updating replicaset with new resource values"
+  end
+  return putResponse
+end
+
 # Parse config map to get new settings for daemonset and replicaset
-configMapSettings = parseConfigMap(@cpuMemConfigMapMountPath)
+configMapSettings = getConfigMapSettings
 
 #Parse config map to enable/disable plugin to retry set resources on daemonset/replicaset
 pluginConfig = parseConfigMap(@resourceUpdatePluginPath)
@@ -260,14 +327,16 @@ if !pluginConfig.nil? && !pluginConfig[:enable_plugin].nil? && pluginConfig[:ena
 end
 
 # Check and update daemonset resources if unset or config map applied
-puts "****************Begin Daemonset Resource Config Processing********************"
-if !configMapSettings.nil?
-  puts "config::config map mounted for custom cpu and memory, using custom settings for daemonset"
-  newResourcesDs = getNewResourcesDs(configMapSettings)
-else
-  puts "config::config map not mounted for custom cpu and memory, using defaults for daemonset"
-  newResourcesDs = getDefaultResourcesDs
-end
+# puts "****************Begin Daemonset Resource Config Processing********************"
+# if !configMapSettings.nil?
+#   puts "config::config map mounted for custom cpu and memory, using custom settings for daemonset"
+#   newResourcesDs = getNewResourcesDs(configMapSettings)
+# else
+#   puts "config::config map not mounted for custom cpu and memory, using defaults for daemonset"
+#   newResourcesDs = getDefaultResourcesDs
+# end
+
+newResourcesDs = validateDsConfigMapSettings(configMapSettings)
 
 # Get current resource requests and limits for daemonset and replicaset
 responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = getCurrentResourcesDs
@@ -283,17 +352,19 @@ else
 end
 if !updateDs.nil? && updateDs == true
   puts "config::Current daemonset resources are either empty or different from new resources, updating"
-  # Create hash with new resource values
-  newLimithash = {"cpu" => newResourcesDs["cpuLimits"], "memory" => newResourcesDs["memoryLimits"]}
-  newRequesthash = {"cpu" => newResourcesDs["cpuRequests"], "memory" => newResourcesDs["memoryRequests"]}
-  if hasResourceKeyDs == true
-    # Update the limits and requests for daemonset
-    responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
-    responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
-  end
-  # Put request to update daemonset
-  puts responseHashDs.to_json
-  putResponse = KubernetesApiClient.updateOmsagentPod(@daemonset, responseHashDs.to_json)
+  # # Create hash with new resource values
+  # newLimithash = {"cpu" => newResourcesDs["cpuLimits"], "memory" => newResourcesDs["memoryLimits"]}
+  # newRequesthash = {"cpu" => newResourcesDs["cpuRequests"], "memory" => newResourcesDs["memoryRequests"]}
+  # if hasResourceKeyDs == true
+  #   # Update the limits and requests for daemonset
+  #   responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
+  #   responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
+  # end
+  # # Put request to update daemonset
+  # puts responseHashDs.to_json
+  # putResponse = KubernetesApiClient.updateOmsagentPod(@daemonset, responseHashDs.to_json)
+  putResponse = updateDsWithNewResources(newResourcesDs, hasResourceKeyDs, responseHashDs)
+
   if !putResponse.nil?
     puts "config::Put request to update daemonset resources was successful, new resource values set on daemonset"
   else
@@ -310,13 +381,15 @@ puts "****************End Daemonset Resource Config Processing******************
 
 puts "****************Begin Replicaset Resource Config Processing********************"
 # Check and update replicaset resources if unset or config map applied
-if !configMapSettings.nil?
-  puts "config::config map mounted for custom cpu and memory, using custom settings for replicaset"
-  newResourcesRs = getNewResourcesRs(configMapSettings)
-else
-  puts "config::config map not mounted for custom cpu and memory, using defaults for replicaset"
-  newResourcesRs = getDefaultResourcesRs
-end
+# if !configMapSettings.nil?
+#   puts "config::config map mounted for custom cpu and memory, using custom settings for replicaset"
+#   newResourcesRs = getNewResourcesRs(configMapSettings)
+# else
+#   puts "config::config map not mounted for custom cpu and memory, using defaults for replicaset"
+#   newResourcesRs = getDefaultResourcesRs
+# end
+
+newResourcesRs = validateRsConfigMapSettings(configMapSettings)
 
 # Get current resource requests and limits for daemonset and replicaset
 responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = getCurrentResourcesRs
@@ -333,15 +406,16 @@ end
 if !updateRs.nil? && updateRs == true
   puts "config::Current replicaset resources are either empty or different from new resources, updating"
   # Create hash with new resource values
-  newLimithash = {"cpu" => newResourcesRs["cpuLimits"], "memory" => newResourcesRs["memoryLimits"]}
-  newRequesthash = {"cpu" => newResourcesRs["cpuRequests"], "memory" => newResourcesRs["memoryRequests"]}
-  if hasResourceKeyRs == true
-    # Update the limits and requests for replicaset
-    responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
-    responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
-  end
-  # Put request to update replicaset
-  putResponse = KubernetesApiClient.updateOmsagentPod(@replicaset, responseHashRs.to_json)
+  # newLimithash = {"cpu" => newResourcesRs["cpuLimits"], "memory" => newResourcesRs["memoryLimits"]}
+  # newRequesthash = {"cpu" => newResourcesRs["cpuRequests"], "memory" => newResourcesRs["memoryRequests"]}
+  # if hasResourceKeyRs == true
+  #   # Update the limits and requests for replicaset
+  #   responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
+  #   responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
+  # end
+  # # Put request to update replicaset
+  # putResponse = KubernetesApiClient.updateOmsagentPod(@replicaset, responseHashRs.to_json)
+  putResponse = updateRsWithNewResources(newResourcesRs, hasResourceKeyRs, responseHashRs)
   if !putResponse.nil?
     puts "config::Put request to update replicaset resources was successful, new resource values set on replicaset"
   else

@@ -1,9 +1,7 @@
 #!/usr/local/bin/ruby
 # frozen_string_literal: true
 
-require "json"
-require_relative "tomlrb"
-require_relative "microsoft/omsagent/plugin/KubernetesApiClient"
+require_relative "resource-modifier-helper"
 
 @cpuMemConfigMapMountPath = "/etc/config/settings/custom-resource-settings"
 @resourceUpdatePluginPath = "/etc/config/settings/omsagent-resource-set-plugin"
@@ -64,14 +62,14 @@ if !pluginConfig.nil? && !pluginConfig[:enable_plugin].nil? && pluginConfig[:ena
 end
 
 # Check and update daemonset resources if unset or config map applied
-# puts "****************Begin Daemonset Resource Config Processing********************"
-newResourcesDs = validateConfigMapAndGetNewResourcesDs(configMapSettings)
+puts "****************Begin Daemonset Resource Config Processing********************"
+newResourcesDs = ResourceModifierHelper.validateConfigMapAndGetNewResourcesDs(configMapSettings)
 
 # Get current resource requests and limits for daemonset and replicaset
-responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = getCurrentResourcesDs
+responseHashDs, currentAgentResourcesDs, hasResourceKeyDs = ResourceModifierHelper.getCurrentResourcesDs
 
 # Check current daemonset resources and update if its empty or has changed
-dsCurrentResNilCheck = areAgentResourcesNilOrEmpty(currentAgentResourcesDs)
+dsCurrentResNilCheck = ResourceModifierHelper.areAgentResourcesNilOrEmpty(currentAgentResourcesDs)
 if !dsCurrentResNilCheck
   # Compare existing and new resources and update if necessary
   updateDs = isUpdateResources(currentAgentResourcesDs, newResourcesDs)
@@ -81,18 +79,7 @@ else
 end
 if !updateDs.nil? && updateDs == true
   puts "config::Current daemonset resources are either empty or different from new resources, updating"
-  # # Create hash with new resource values
-  # newLimithash = {"cpu" => newResourcesDs["cpuLimits"], "memory" => newResourcesDs["memoryLimits"]}
-  # newRequesthash = {"cpu" => newResourcesDs["cpuRequests"], "memory" => newResourcesDs["memoryRequests"]}
-  # if hasResourceKeyDs == true
-  #   # Update the limits and requests for daemonset
-  #   responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
-  #   responseHashDs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
-  # end
-  # # Put request to update daemonset
-  # puts responseHashDs.to_json
-  # putResponse = KubernetesApiClient.updateOmsagentPod(@daemonset, responseHashDs.to_json)
-  putResponse = updateDsWithNewResources(newResourcesDs, hasResourceKeyDs, responseHashDs)
+  putResponse = ResourceModifierHelper.updateDsWithNewResources(newResourcesDs, hasResourceKeyDs, responseHashDs)
 
   if !putResponse.nil?
     puts "config::Put request to update daemonset resources was successful, new resource values set on daemonset"
@@ -109,22 +96,13 @@ end
 puts "****************End Daemonset Resource Config Processing***********************"
 
 puts "****************Begin Replicaset Resource Config Processing********************"
-# Check and update replicaset resources if unset or config map applied
-# if !configMapSettings.nil?
-#   puts "config::config map mounted for custom cpu and memory, using custom settings for replicaset"
-#   newResourcesRs = getNewResourcesRs(configMapSettings)
-# else
-#   puts "config::config map not mounted for custom cpu and memory, using defaults for replicaset"
-#   newResourcesRs = getDefaultResourcesRs
-# end
-
-newResourcesRs = validateConfigMapAndGetNewResourcesRs(configMapSettings)
+newResourcesRs = ResourceModifierHelper.validateConfigMapAndGetNewResourcesRs(configMapSettings)
 
 # Get current resource requests and limits for daemonset and replicaset
-responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = getCurrentResourcesRs
+responseHashRs, currentAgentResourcesRs, hasResourceKeyRs = ResourceModifierHelper.getCurrentResourcesRs
 
 # Check current replicaset resources and update if its empty or has changed
-rsCurrentResNilCheck = areAgentResourcesNilOrEmpty(currentAgentResourcesRs)
+rsCurrentResNilCheck = ResourceModifierHelper.areAgentResourcesNilOrEmpty(currentAgentResourcesRs)
 if !rsCurrentResNilCheck
   # Compare existing and new resources and update if necessary
   updateRs = isUpdateResources(currentAgentResourcesRs, newResourcesRs)
@@ -134,17 +112,7 @@ else
 end
 if !updateRs.nil? && updateRs == true
   puts "config::Current replicaset resources are either empty or different from new resources, updating"
-  # Create hash with new resource values
-  # newLimithash = {"cpu" => newResourcesRs["cpuLimits"], "memory" => newResourcesRs["memoryLimits"]}
-  # newRequesthash = {"cpu" => newResourcesRs["cpuRequests"], "memory" => newResourcesRs["memoryRequests"]}
-  # if hasResourceKeyRs == true
-  #   # Update the limits and requests for replicaset
-  #   responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["limits"] = newLimithash
-  #   responseHashRs["spec"]["template"]["spec"]["containers"][0]["resources"]["requests"] = newRequesthash
-  # end
-  # # Put request to update replicaset
-  # putResponse = KubernetesApiClient.updateOmsagentPod(@replicaset, responseHashRs.to_json)
-  putResponse = updateRsWithNewResources(newResourcesRs, hasResourceKeyRs, responseHashRs)
+  putResponse = ResourceModifierHelper.updateRsWithNewResources(newResourcesRs, hasResourceKeyRs, responseHashRs)
   if !putResponse.nil?
     puts "config::Put request to update replicaset resources was successful, new resource values set on replicaset"
   else

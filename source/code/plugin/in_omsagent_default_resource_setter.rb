@@ -13,6 +13,7 @@ module Fluent
       # require_relative "oms_common"
       require_relative "omslog"
       require_relative "ApplicationInsightsUtility"
+      require_relative "/opt/resource-modifier-helper"
     end
 
     config_param :run_interval, :time, :default => "1m"

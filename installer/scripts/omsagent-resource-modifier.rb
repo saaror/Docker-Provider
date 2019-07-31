@@ -8,16 +8,6 @@ require_relative "resource-modifier-helper"
 @replicaset = "replicaset"
 @daemonset = "daemonset"
 
-#Default values for requests and limits in case of absent config map for custom cpu and memory resources
-@defaultOmsAgentCpuLimit = "150m"
-@defaultOmsAgentMemLimit = "600Mi"
-@defaultOmsAgentCpuRequest = "75m"
-@defaultOmsAgentMemRequest = "225Mi"
-@defaultOmsAgentRsCpuLimit = "150m"
-@defaultOmsAgentRsMemLimit = "500Mi"
-@defaultOmsAgentRsCpuRequest = "50m"
-@defaultOmsAgentRsMemRequest = "175Mi"
-
 def isUpdateResources(currentAgentResources, newResources)
   begin
     if !newResources.nil?
@@ -55,7 +45,7 @@ end
 configMapSettings = ResourceModifierHelper.getConfigMapSettings
 
 #Parse config map to enable/disable plugin to retry set resources on daemonset/replicaset
-pluginConfig = parseConfigMap(@resourceUpdatePluginPath)
+pluginConfig = ResourceModifierHelper.parseConfigMap(@resourceUpdatePluginPath)
 pluginEnabled = false
 if !pluginConfig.nil? && !pluginConfig[:enable_plugin].nil? && pluginConfig[:enable_plugin][:enabled] == true
   pluginEnabled = true

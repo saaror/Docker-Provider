@@ -9,6 +9,16 @@ class ResourceModifierHelper
   @replicaset = "replicaset"
   @daemonset = "daemonset"
 
+  #Default values for requests and limits in case of absent config map for custom cpu and memory resources
+  @defaultOmsAgentCpuLimit = "150m"
+  @defaultOmsAgentMemLimit = "600Mi"
+  @defaultOmsAgentCpuRequest = "75m"
+  @defaultOmsAgentMemRequest = "225Mi"
+  @defaultOmsAgentRsCpuLimit = "150m"
+  @defaultOmsAgentRsMemLimit = "500Mi"
+  @defaultOmsAgentRsCpuRequest = "50m"
+  @defaultOmsAgentRsMemRequest = "175Mi"
+
   def initialize
   end
 

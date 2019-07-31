@@ -92,6 +92,8 @@ module Fluent
           else
             $log.info("in_omsagent_default_resource_setter:Replicaset resources not empty, skipping replicaset update")
           end
+        else
+          $log.info("in_omsagent_default_resource_setter: Env variable AZMON_ENABLE_RESOURCE_SET_PLUGIN not set or set to false, skipping plugin run")
         end
       rescue => errorStr
         $log.warn("in_omsagent_default_resource_setter::updateResources:error : #{errorStr}")

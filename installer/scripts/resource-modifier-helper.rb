@@ -9,6 +9,8 @@ class ResourceModifierHelper
   @replicaset = "replicaset"
   @daemonset = "daemonset"
 
+  @cpuMemConfigMapMountPath = "/etc/config/settings/custom-resource-settings"
+
   #Default values for requests and limits in case of absent config map for custom cpu and memory resources
   @defaultOmsAgentCpuLimit = "150m"
   @defaultOmsAgentMemLimit = "600Mi"

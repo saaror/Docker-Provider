@@ -3,10 +3,7 @@
 
 require_relative "resource-modifier-helper"
 
-@cpuMemConfigMapMountPath = "/etc/config/settings/custom-resource-settings"
 @resourceUpdatePluginPath = "/etc/config/settings/omsagent-resource-set-plugin"
-@replicaset = "replicaset"
-@daemonset = "daemonset"
 
 def isUpdateResources(currentAgentResources, newResources)
   begin

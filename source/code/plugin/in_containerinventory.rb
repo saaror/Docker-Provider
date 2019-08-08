@@ -18,6 +18,7 @@ module Fluent
       require_relative "ContainerInventoryState"
       require_relative "ApplicationInsightsUtility"
       require_relative "omslog"
+      require_relative "CAdvisorMetricsAPIClient"
     end
 
     config_param :run_interval, :time, :default => "1m"
@@ -161,27 +162,34 @@ module Fluent
       begin
         container = DockerApiClient.dockerInspectContainer(id)
         if !container.nil? && !container.empty?
-          containerInstance["InstanceID"] = container["Id"]
-          containerInstance["CreatedTime"] = container["Created"]
-          containerName = container["Name"]
-          if !containerName.nil? && !containerName.empty?
-            # Remove the leading / from the name if it exists (this is an API issue)
-            containerInstance["ElementName"] = (containerName[0] == "/") ? containerName[1..-1] : containerName
-          end
-          imageValue = container["Image"]
-          if !imageValue.nil? && !imageValue.empty?
-            repoImageTagArray = nameMap[imageValue]
-            if nameMap.has_key? imageValue
-              containerInstance["Repository"] = repoImageTagArray[0]
-              containerInstance["Image"] = repoImageTagArray[1]
-              containerInstance["ImageTag"] = repoImageTagArray[2]
-              # Setting the image id to the id in the remote repository
-              containerInstance["ImageId"] = repoImageTagArray[3]
+          podUidsExcludingJobs = CAdvisorMetricsAPIClient.getPodUidArray
+          # Check to see if it is in the list of pods excluding jobs
+          if !container["Config"].nil? &&
+             !container["Config"]["Labels"].nil? &&
+             !container["Config"]["Labels"]["io.kubernetes.pod.uid"].nil? &&
+             (podUidsExcludingJobs.include? container["Config"]["Labels"]["io.kubernetes.pod.uid"])
+            containerInstance["InstanceID"] = container["Id"]
+            containerInstance["CreatedTime"] = container["Created"]
+            containerName = container["Name"]
+            if !containerName.nil? && !containerName.empty?
+              # Remove the leading / from the name if it exists (this is an API issue)
+              containerInstance["ElementName"] = (containerName[0] == "/") ? containerName[1..-1] : containerName
             end
+            imageValue = container["Image"]
+            if !imageValue.nil? && !imageValue.empty?
+              repoImageTagArray = nameMap[imageValue]
+              if nameMap.has_key? imageValue
+                containerInstance["Repository"] = repoImageTagArray[0]
+                containerInstance["Image"] = repoImageTagArray[1]
+                containerInstance["ImageTag"] = repoImageTagArray[2]
+                # Setting the image id to the id in the remote repository
+                containerInstance["ImageId"] = repoImageTagArray[3]
+              end
+            end
+            obtainContainerConfig(containerInstance, container, clusterCollectEnvironmentVar)
+            obtainContainerState(containerInstance, container)
+            obtainContainerHostConfig(containerInstance, container)
           end
-          obtainContainerConfig(containerInstance, container, clusterCollectEnvironmentVar)
-          obtainContainerState(containerInstance, container)
-          obtainContainerHostConfig(containerInstance, container)
         end
       rescue => errorStr
         $log.warn("Exception in inspectContainer: #{errorStr} for container: #{id}")
@@ -208,10 +216,12 @@ module Fluent
           containerIds.each do |containerId|
             inspectedContainer = {}
             inspectedContainer = inspectContainer(containerId, nameMap, clusterCollectEnvironmentVar)
-            inspectedContainer["Computer"] = hostname
-            inspectedContainer["CollectionTime"] = batchTime #This is the time that is mapped to become TimeGenerated
-            containerInventory.push inspectedContainer
-            ContainerInventoryState.writeContainerState(inspectedContainer)
+            if !inspectedContainer.empty?
+              inspectedContainer["Computer"] = hostname
+              inspectedContainer["CollectionTime"] = batchTime #This is the time that is mapped to become TimeGenerated
+              containerInventory.push inspectedContainer
+              ContainerInventoryState.writeContainerState(inspectedContainer)
+            end
           end
           # Update the state for deleted containers
           deletedContainers = ContainerInventoryState.getDeletedContainers(containerIds)

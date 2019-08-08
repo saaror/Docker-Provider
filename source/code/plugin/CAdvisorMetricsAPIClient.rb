@@ -24,10 +24,10 @@ class CAdvisorMetricsAPIClient
 
   @rsPromInterval = ENV["TELEMETRY_RS_PROM_INTERVAL"]
   @dsPromInterval = ENV["TELEMETRY_DS_PROM_INTERVAL"]
-  
+
   @rsPromFieldPassCount = ENV["TELEMETRY_RS_PROM_FIELDPASS_LENGTH"]
   @dsPromFieldPassCount = ENV["TELEMETRY_DS_PROM_FIELDPASS_LENGTH"]
-  
+
   @rsPromFieldDropCount = ENV["TELEMETRY_RS_PROM_FIELDDROP_LENGTH"]
   @dsPromFieldDropCount = ENV["TELEMETRY_DS_PROM_FIELDDROP_LENGTH"]
 
@@ -37,7 +37,8 @@ class CAdvisorMetricsAPIClient
   @dsPromUrlCount = ENV["TELEMETRY_DS_PROM_URLS_LENGTH"]
 
   @rsPromMonitorPods = ENV["TELEMETRY_RS_PROM_MONITOR_PODS"]
-  
+
+  @podUidArray = []
 
   @LogPath = "/var/opt/microsoft/docker-cimprov/log/kubernetes_perf_log.txt"
   @Log = Logger.new(@LogPath, 2, 10 * 1048576) #keep last 2 files, max log file size = 10M
@@ -115,6 +116,33 @@ class CAdvisorMetricsAPIClient
       end
     end
 
+    def getPodUidArray
+      if @podUidArray.empty?
+        podInventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("pods?fieldSelector=status.phase%21%3DSucceeded").body)
+        podInventory["items"].each do |item|
+          if !item.nil && !item["metadata"].nil?
+            podNameSpace = item["metadata"]["namespace"]
+            if podNameSpace.eql?("kube-system") && !item["metadata"].key?("ownerReferences")
+              # The above case seems to be the only case where you have horizontal scaling of pods
+              # but no controller, in which case cAdvisor picks up kubernetes.io/config.hash
+              # instead of the actual poduid. Since this uid is not being surface into the UX
+              # its ok to use this.
+              # Use kubernetes.io/config.hash to be able to correlate with cadvisor data
+              if item["metadata"]["annotations"].nil?
+                next
+              else
+                podUid = item["metadata"]["annotations"]["kubernetes.io/config.hash"]
+              end
+            else
+              podUid = item["metadata"]["uid"]
+            end
+            @podUidArray.push(item.metadata.uid)
+          end
+        end
+      end
+      return @podUidArray
+    end
+
     def getMetrics(winNode = nil)
       metricDataItems = []
       begin
@@ -184,8 +212,9 @@ class CAdvisorMetricsAPIClient
           podUid = pod["podRef"]["uid"]
           podName = pod["podRef"]["name"]
           podNamespace = pod["podRef"]["namespace"]
-
-          if (!pod["containers"].nil?)
+          podUidsExcludingJobs = getPodUidArray
+          # Excluding pods from completed jobs
+          if (!pod["containers"].nil? && (podUidsExcludingJobs.include? podUid))
             pod["containers"].each do |container|
               #cpu metric
               containerName = container["name"]
@@ -299,8 +328,9 @@ class CAdvisorMetricsAPIClient
           podUid = pod["podRef"]["uid"]
           podName = pod["podRef"]["name"]
           podNamespace = pod["podRef"]["namespace"]
-
-          if (!pod["containers"].nil?)
+          podUidsExcludingJobs = getPodUidArray
+          # Excluding pods from completed jobs
+          if (!pod["containers"].nil? && (podUidsExcludingJobs.include? podUid))
             pod["containers"].each do |container|
               #cpu metric
               containerCount += 1
@@ -391,7 +421,9 @@ class CAdvisorMetricsAPIClient
           podUid = pod["podRef"]["uid"]
           podName = pod["podRef"]["name"]
           podNamespace = pod["podRef"]["namespace"]
-          if (!pod["containers"].nil?)
+          podUidsExcludingJobs = getPodUidArray
+          # Excluding pods from completed jobs
+          if (!pod["containers"].nil? && (podUidsExcludingJobs.include? podUid))
             pod["containers"].each do |container|
               containerName = container["name"]
               metricValue = container["memory"][memoryMetricNameToCollect]
@@ -642,7 +674,9 @@ class CAdvisorMetricsAPIClient
         metricInfo = metricJSON
         metricInfo["pods"].each do |pod|
           podUid = pod["podRef"]["uid"]
-          if (!pod["containers"].nil?)
+          podUidsExcludingJobs = getPodUidArray
+          # Excluding pods from completed jobs
+          if (!pod["containers"].nil? && (podUidsExcludingJobs.include? podUid))
             pod["containers"].each do |container|
               containerName = container["name"]
               metricValue = container["startTime"]

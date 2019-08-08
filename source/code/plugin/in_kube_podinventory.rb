@@ -50,7 +50,8 @@ module Fluent
     def enumerate(podList = nil)
       if podList.nil?
         $log.info("in_kube_podinventory::enumerate : Getting pods from Kube API @ #{Time.now.utc.iso8601}")
-        podInventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("pods").body)
+        # Filter out the pods that have completed with successful status(Jobs)
+        podInventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("pods?fieldSelector=status.phase%21%3DSucceeded").body)
         $log.info("in_kube_podinventory::enumerate : Done getting pods from Kube API @ #{Time.now.utc.iso8601}")
       else
         podInventory = podList
@@ -329,7 +330,7 @@ module Fluent
               end
 
               # Record the last state of the container. This may have information on why a container was killed.
-              begin 
+              begin
                 if !container["lastState"].nil? && container["lastState"].keys.length == 1
                   lastStateName = container["lastState"].keys[0]
                   lastStateObject = container["lastState"][lastStateName]
@@ -338,7 +339,7 @@ module Fluent
                   end
 
                   if lastStateObject.key?("reason") && lastStateObject.key?("startedAt") && lastStateObject.key?("finishedAt")
-                    newRecord  = Hash.new
+                    newRecord = Hash.new
                     newRecord["lastState"] = lastStateName  # get the name of the last state (ex: terminated)
                     newRecord["reason"] = lastStateObject["reason"]  # (ex: OOMKilled)
                     newRecord["startedAt"] = lastStateObject["startedAt"]  # (ex: 2019-07-02T14:58:51Z)

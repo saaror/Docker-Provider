@@ -57,6 +57,7 @@ class CAdvisorMetricsAPIClient
   @@winNodePrevMetricRate = {}
   @@telemetryCpuMetricTimeTracker = DateTime.now.to_time.to_i
   @@telemetryMemoryMetricTimeTracker = DateTime.now.to_time.to_i
+  @@podUidTimeTracker = DateTime.now.to_time.to_i
 
   #Containers a hash of node name and the last time telemetry was sent for this node
   @@nodeTelemetryTimeTracker = {}
@@ -118,7 +119,9 @@ class CAdvisorMetricsAPIClient
 
     def getPodUidArray
       begin
-        if @podUidArray.empty?
+        timeDifference = (DateTime.now.to_time.to_i - @@podUidTimeTracker).abs
+        timeDifferenceInMinutes = timeDifference / 60
+        if @podUidArray.empty? || (timeDifferenceInMinutes >= 5)
           podInventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("pods?fieldSelector=status.phase%21%3DSucceeded").body)
           podInventory["items"].each do |item|
             if !item.nil? && !item["metadata"].nil?
@@ -141,6 +144,7 @@ class CAdvisorMetricsAPIClient
             end
           end
         end
+        @@podUidTimeTracker = DateTime.now.to_time.to_i
         return @podUidArray
       rescue => errorStr
         @Log.warn("Error in getPodUidArray: #{errorStr}")

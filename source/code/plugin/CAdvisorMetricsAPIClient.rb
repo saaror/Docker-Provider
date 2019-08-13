@@ -121,6 +121,7 @@ class CAdvisorMetricsAPIClient
       begin
         timeDifference = (DateTime.now.to_time.to_i - @@podUidTimeTracker).abs
         timeDifferenceInMinutes = timeDifference / 60
+        # Requerying the pods when the array is nil or its been 5 minutes since the last query
         if @podUidArray.empty? || (timeDifferenceInMinutes >= 5)
           podInventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("pods?fieldSelector=status.phase%21%3DSucceeded").body)
           @podUidArray = []

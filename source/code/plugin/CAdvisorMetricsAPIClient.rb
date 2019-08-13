@@ -123,6 +123,7 @@ class CAdvisorMetricsAPIClient
         timeDifferenceInMinutes = timeDifference / 60
         if @podUidArray.empty? || (timeDifferenceInMinutes >= 5)
           podInventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("pods?fieldSelector=status.phase%21%3DSucceeded").body)
+          @podUidArray = []
           podInventory["items"].each do |item|
             if !item.nil? && !item["metadata"].nil?
               podNameSpace = item["metadata"]["namespace"]
@@ -143,8 +144,8 @@ class CAdvisorMetricsAPIClient
               @podUidArray.push(item["metadata"]["uid"])
             end
           end
+          @@podUidTimeTracker = DateTime.now.to_time.to_i
         end
-        @@podUidTimeTracker = DateTime.now.to_time.to_i
         return @podUidArray
       rescue => errorStr
         @Log.warn("Error in getPodUidArray: #{errorStr}")

@@ -86,7 +86,7 @@ module Fluent
         node_inventory = JSON.parse(node_inventory_response.body)
         pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
         pod_inventory = JSON.parse(pod_inventory_response.body)
-        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments", api_version: "extensions/v1beta1").body)
+        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments").body)
 
         @resources.node_inventory = node_inventory
         @resources.pod_inventory = pod_inventory
@@ -291,7 +291,7 @@ module Fluent
         node_inventory = JSON.parse(node_inventory_response.body)
         pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
         pod_inventory = JSON.parse(pod_inventory_response.body)
-        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments", api_version: "extensions/v1beta1").body)
+        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments").body)
 
         @resources.node_inventory = node_inventory
         @resources.pod_inventory = pod_inventory

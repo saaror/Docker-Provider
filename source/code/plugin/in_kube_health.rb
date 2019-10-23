@@ -6,6 +6,8 @@ require_relative "oms_common"
 require_relative "omslog"
 require_relative "ApplicationInsightsUtility"
 
+@@ApiGroupApps = "apps"
+
 module Fluent
 
   Dir[File.join(__dir__, './health', '*.rb')].each { |file| require file }
@@ -86,7 +88,7 @@ module Fluent
         node_inventory = JSON.parse(node_inventory_response.body)
         pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
         pod_inventory = JSON.parse(pod_inventory_response.body)
-        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments").body)
+        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments", @@ApiGroupApps).body)
 
         @resources.node_inventory = node_inventory
         @resources.pod_inventory = pod_inventory
@@ -291,7 +293,7 @@ module Fluent
         node_inventory = JSON.parse(node_inventory_response.body)
         pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
         pod_inventory = JSON.parse(pod_inventory_response.body)
-        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments").body)
+        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments", @@ApiGroupApps).body)
 
         @resources.node_inventory = node_inventory
         @resources.pod_inventory = pod_inventory

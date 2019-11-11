@@ -86,11 +86,12 @@ module Fluent
         node_inventory = JSON.parse(node_inventory_response.body)
         pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
         pod_inventory = JSON.parse(pod_inventory_response.body)
+        replicaset_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("replicasets", api_version: "extensions/v1beta1").body)
         deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments", api_group: @@ApiGroupApps).body)
 
         @resources.node_inventory = node_inventory
         @resources.pod_inventory = pod_inventory
-        @resources.set_deployment_inventory(deployment_inventory)
+        @resources.set_replicaset_inventory(replicaset_inventory)
         @resources.build_pod_uid_lookup
 
         if node_inventory_response.code.to_i != 200
@@ -106,7 +107,7 @@ module Fluent
           health_monitor_records.push(record) if record
           record = process_memory_oversubscribed_monitor(pod_inventory, node_inventory)
           health_monitor_records.push(record) if record
-          pods_ready_hash = HealthMonitorUtils.get_pods_ready_hash(pod_inventory, deployment_inventory)
+          pods_ready_hash = HealthMonitorUtils.get_pods_ready_hash(@resources)
 
           system_pods = pods_ready_hash.select { |k, v| v["namespace"] == "kube-system" }
           workload_pods = pods_ready_hash.select { |k, v| v["namespace"] != "kube-system" }
@@ -121,7 +122,7 @@ module Fluent
             health_monitor_records.push(record) if record
           end
         else
-          hmlog.info "POD INVENTORY IS NIL"
+            @@hmlog.info "POD INVENTORY IS NIL"
         end
 
         if !node_inventory.nil?
@@ -130,7 +131,7 @@ module Fluent
             health_monitor_records.push(record) if record
           end
         else
-          hmlog.info "NODE INVENTORY IS NIL"
+            @@hmlog.info "NODE INVENTORY IS NIL"
         end
 
         health_monitor_records.each do |record|
@@ -257,35 +258,49 @@ module Fluent
       monitor_config = @provider.get_config(monitor_id)
       node_condition_monitor_records = []
       if !node_inventory.nil?
-        node_inventory["items"].each do |node|
-          node_name = node["metadata"]["name"]
-          conditions = node["status"]["conditions"]
-          state = HealthMonitorUtils.get_node_state_from_node_conditions(monitor_config, conditions)
-          details = {}
-          conditions.each do |condition|
-            state = !(condition["status"].downcase == "true" && condition["type"].downcase != "ready") ? HealthMonitorStates::PASS : HealthMonitorStates::FAIL
-            details[condition["type"]] = {"Reason" => condition["reason"], "Message" => condition["message"], "State" => state}
-            #@@hmlog.info "Node Condition details: #{JSON.pretty_generate(details)}"
+          node_inventory['items'].each do |node|
+            node_name = node['metadata']['name']
+            conditions = node['status']['conditions']
+            node_state = HealthMonitorUtils.get_node_state_from_node_conditions(monitor_config, conditions)
+            details = {}
+            conditions.each do |condition|
+                condition_state = HealthMonitorStates::PASS
+                if condition['type'].downcase != 'ready'
+                    if (condition['status'].downcase == 'true' || condition['status'].downcase == 'unknown')
+                        condition_state = HealthMonitorStates::FAIL
+                    end
+                else #Condition == READY
+                    if condition['status'].downcase != 'true'
+                        condition_state = HealthMonitorStates::FAIL
+                    end
+                end
+                details[condition['type']] = {"Reason" => condition['reason'], "Message" => condition['message'], "State" => condition_state}
+            end
+            health_monitor_record = {"timestamp" => timestamp, "state" => node_state, "details" => details}
+            monitor_instance_id = HealthMonitorUtils.get_monitor_instance_id(monitor_id, [@@cluster_id, node_name])
+            health_record = {}
+            time_now = Time.now.utc.iso8601
+            health_record[HealthMonitorRecordFields::MONITOR_ID] = monitor_id
+            health_record[HealthMonitorRecordFields::MONITOR_INSTANCE_ID] = monitor_instance_id
+            health_record[HealthMonitorRecordFields::DETAILS] = health_monitor_record
+            health_record[HealthMonitorRecordFields::TIME_GENERATED] =  time_now
+            health_record[HealthMonitorRecordFields::TIME_FIRST_OBSERVED] =  time_now
+            health_record[HealthMonitorRecordFields::CLUSTER_ID] = @@cluster_id
+            health_record[HealthMonitorRecordFields::NODE_NAME] = node_name
+            node_condition_monitor_records.push(health_record)
           end
-          health_monitor_record = {"timestamp" => timestamp, "state" => state, "details" => details}
-          monitor_instance_id = HealthMonitorUtils.get_monitor_instance_id(monitor_id, [@@cluster_id, node_name])
-          health_record = {}
-          time_now = Time.now.utc.iso8601
-          health_record[HealthMonitorRecordFields::MONITOR_ID] = monitor_id
-          health_record[HealthMonitorRecordFields::MONITOR_INSTANCE_ID] = monitor_instance_id
-          health_record[HealthMonitorRecordFields::DETAILS] = health_monitor_record
-          health_record[HealthMonitorRecordFields::TIME_GENERATED] = time_now
-          health_record[HealthMonitorRecordFields::TIME_FIRST_OBSERVED] = time_now
-          health_record[HealthMonitorRecordFields::CLUSTER_ID] = @@cluster_id
-          health_record[HealthMonitorRecordFields::NODE_NAME] = node_name
-          node_condition_monitor_records.push(health_record)
-        end
       end
       #@@hmlog.info "Successfully processed process_node_condition_monitor #{node_condition_monitor_records.size}"
       return node_condition_monitor_records
     end
 
     def initialize_inventory
+        #this is required because there are other components, like the container cpu memory aggregator, that depends on the mapping being initialized
+        node_inventory_response = KubernetesApiClient.getKubeResourceInfo("nodes")
+        node_inventory = JSON.parse(node_inventory_response.body)
+        pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
+        pod_inventory = JSON.parse(pod_inventory_response.body)
+        replicaset_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("replicasets", api_version: "extensions/v1beta1").body)
       #this is required because there are other components, like the container cpu memory aggregator, that depends on the mapping being initialized
       node_inventory_response = KubernetesApiClient.getKubeResourceInfo("nodes")
       node_inventory = JSON.parse(node_inventory_response.body)
@@ -293,10 +308,10 @@ module Fluent
       pod_inventory = JSON.parse(pod_inventory_response.body)
       deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments", api_group: @@ApiGroupApps).body)
 
-      @resources.node_inventory = node_inventory
-      @resources.pod_inventory = pod_inventory
-      @resources.set_deployment_inventory(deployment_inventory)
-      @resources.build_pod_uid_lookup
+        @resources.node_inventory = node_inventory
+        @resources.pod_inventory = pod_inventory
+        @resources.set_replicaset_inventory(replicaset_inventory)
+        @resources.build_pod_uid_lookup
     end
 
     def run_periodic

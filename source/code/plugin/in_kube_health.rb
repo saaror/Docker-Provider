@@ -86,8 +86,7 @@ module Fluent
         node_inventory = JSON.parse(node_inventory_response.body)
         pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
         pod_inventory = JSON.parse(pod_inventory_response.body)
-        replicaset_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("replicasets", api_version: "extensions/v1beta1").body)
-        deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments", api_group: @@ApiGroupApps).body)
+        replicaset_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("replicasets", api_group: @@ApiGroupApps).body)
 
         @resources.node_inventory = node_inventory
         @resources.pod_inventory = pod_inventory
@@ -300,13 +299,7 @@ module Fluent
         node_inventory = JSON.parse(node_inventory_response.body)
         pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
         pod_inventory = JSON.parse(pod_inventory_response.body)
-        replicaset_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("replicasets", api_version: "extensions/v1beta1").body)
-      #this is required because there are other components, like the container cpu memory aggregator, that depends on the mapping being initialized
-      node_inventory_response = KubernetesApiClient.getKubeResourceInfo("nodes")
-      node_inventory = JSON.parse(node_inventory_response.body)
-      pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods")
-      pod_inventory = JSON.parse(pod_inventory_response.body)
-      deployment_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("deployments", api_group: @@ApiGroupApps).body)
+        replicaset_inventory = JSON.parse(KubernetesApiClient.getKubeResourceInfo("replicasets", api_group: @@ApiGroupApps).body)
 
         @resources.node_inventory = node_inventory
         @resources.pod_inventory = pod_inventory

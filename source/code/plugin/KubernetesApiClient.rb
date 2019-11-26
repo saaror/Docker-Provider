@@ -556,20 +556,19 @@ class KubernetesApiClient
         resourceInfo = KubernetesApiClient.getKubeResourceInfo(uri)
         $log.info("KubernetesApiClient::getResourcesAndContinuationToken : Done getting resources from Kube API using url: #{uri} @ #{Time.now.utc.iso8601}")
         if !resourceInfo.nil?
-          $log.info("KubernetesApiClient::getResourcesAndContinuationToken:Start:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
+          $log.info("KubernetesApiClient::getResourcesAndContinuationToken:Start:Parsing data using yajl @ #{Time.now.utc.iso8601}")
           resourceInventory = Yajl::Parser.parse(StringIO.new(resourceInfo.body))
-          $log.info("KubernetesApiClient::getResourcesAndContinuationToken:End:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
+          $log.info("KubernetesApiClient::getResourcesAndContinuationToken:End:Parsing data using yajl @ #{Time.now.utc.iso8601}")
         end
         if (!resourceInventory.nil? && !resourceInventory["metadata"].nil?)
           continuationToken = resourceInventory["metadata"]["continue"]
         end
       rescue => errorStr
-        $log.warn "KubernetesApiClient::getResourcesAndContinuationToken:Failed in parse json for continuation token: #{errorStr}"
+        $log.warn "KubernetesApiClient::getResourcesAndContinuationToken:Failed in get resources and continuation token: #{errorStr}"
         $log.debug_backtrace(errorStr.backtrace)
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
         resourceInventory = nil
       end
-      # ensure
       return continuationToken, resourceInventory
     end #getResourcesAndContinuationToken
   end

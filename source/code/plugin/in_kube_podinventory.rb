@@ -57,51 +57,6 @@ module Fluent
       end
     end
 
-    # def processPodChunks(podInventory, serviceList, batchTime)
-    #   begin
-    #     if (!podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
-    #       parse_and_emit_records(podInventory, serviceList, batchTime)
-    #     else
-    #       $log.warn "in_kube_podinventory::processPodChunks:Received empty podInventory"
-    #     end
-    #     podInfo = nil
-    #     podInventory = nil
-    #   rescue => errorStr
-    #     $log.warn "in_kube_podinventory::processPodChunks:Failed in process pod chunks: #{errorStr}"
-    #     $log.debug_backtrace(errorStr.backtrace)
-    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-    #   end
-    # end
-
-    # def parseJsonForContinuationToken(podInfo, serviceList, batchTime)
-    # def parseJsonForContinuationToken(podInfo)
-    #   continuationToken = nil
-    #   podInventory = nil
-    #   begin
-    #     if !podInfo.nil?
-    #       $log.info("in_kube_podinventory::parsePodsJsonAndProcess:Start:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
-    #       podInventory = Yajl::Parser.parse(StringIO.new(podInfo.body))
-    #       $log.info("in_kube_podinventory::parsePodsJsonAndProcess:End:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
-    #     end
-    #     if (!podInventory.nil? && !podInventory["metadata"].nil?)
-    #       continuationToken = podInventory["metadata"]["continue"]
-    #     end
-    #     # processPodChunks(podInventory, serviceList, batchTime)
-    #     # if (!podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
-    #     #   parse_and_emit_records(podInventory, serviceList, batchTime)
-    #     # else
-    #     #   $log.warn "in_kube_podinventory::parsePodsJsonAndProcess:Received empty podInventory"
-    #     # end
-    #     # podInfo = nil
-    #     # podInventory = nil
-    #   rescue => errorStr
-    #     $log.warn "KubernetesApiClient::parseJsonForContinuationToken:Failed in parse pods and process: #{errorStr}"
-    #     $log.debug_backtrace(errorStr.backtrace)
-    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-    #   end
-    #   return continuationToken, podInventory
-    # end
-
     def enumerate(podList = nil)
       podInventory = podList
       telemetryFlush = false
@@ -120,22 +75,16 @@ module Fluent
       # Initializing continuation token to nil
       continuationToken = nil
       $log.info("in_kube_podinventory::enumerate : Getting pods from Kube API @ #{Time.now.utc.iso8601}")
-      podInfo = KubernetesApiClient.getKubeResourceInfo("pods?limit=#{@PODS_CHUNK_SIZE}")
+      continuationToken, podInventory = getResourcesAndContinuationToken("pods?limit=#{@PODS_CHUNK_SIZE}")
       $log.info("in_kube_podinventory::enumerate : Done getting pods from Kube API @ #{Time.now.utc.iso8601}")
-
-      # continuationToken = parsePodsJsonAndProcess(podInfo, serviceList, batchTime)
-      continuationToken = parseJsonForContinuationToken(podInfo)
 
       #If we receive a continuation token, make calls, process and flush data until we have processed all data
       while (!continuationToken.nil? && !continuationToken.empty?)
-        # $log.info("in_kube_podinventory::enumerate : Getting pods from Kube API using continuation token @ #{Time.now.utc.iso8601}")
-        # podInfo = KubernetesApiClient.getKubeResourceInfo("pods?limit=#{@PODS_CHUNK_SIZE}&continue=#{continuationToken}")
-        # $log.info("in_kube_podinventory::enumerate : Done getting pods from Kube API using continuation token @ #{Time.now.utc.iso8601}")
-        # # continuationToken, podInventory = parsePodsJsonAndProcess(podInfo, serviceList, batchTime)
-        continuationToken, podInventory = getInventoryAndContinuationToken("pods?limit=#{@PODS_CHUNK_SIZE}&continue=#{continuationToken}")
+        continuationToken, podInventory = getResourcesAndContinuationToken("pods?limit=#{@PODS_CHUNK_SIZE}&continue=#{continuationToken}")
         if (!podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
           parse_and_emit_records(podInventory, serviceList, batchTime)
           podInventory = nil
+          serviceList = nil
         else
           $log.warn "in_kube_podinventory::parsePodsJsonAndProcess:Received empty podInventory"
         end

@@ -548,31 +548,29 @@ class KubernetesApiClient
     end # getMetricNumericValue
 
     # def parseJsonForContinuationToken(resourceInfo)
-    def getInventoryAndContinuationToken(uri)
+    def getResourcesAndContinuationToken(uri)
       continuationToken = nil
       resourceInventory = nil
       begin
-        $log.info("in_kube_podinventory::enumerate : Getting pods from Kube API using continuation token @ #{Time.now.utc.iso8601}")
+        $log.info("KubernetesApiClient::getResourcesAndContinuationToken : Getting resources from Kube API using url: #{uri} @ #{Time.now.utc.iso8601}")
         resourceInfo = KubernetesApiClient.getKubeResourceInfo(uri)
-        $log.info("in_kube_podinventory::enumerate : Done getting pods from Kube API using continuation token @ #{Time.now.utc.iso8601}")
+        $log.info("KubernetesApiClient::getResourcesAndContinuationToken : Done getting resources from Kube API using url: #{uri} @ #{Time.now.utc.iso8601}")
         if !resourceInfo.nil?
-          $log.info("in_kube_podinventory::getInventoryAndContinuationToken:Start:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
+          $log.info("KubernetesApiClient::getResourcesAndContinuationToken:Start:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
           resourceInventory = Yajl::Parser.parse(StringIO.new(resourceInfo.body))
-          $log.info("in_kube_podinventory::getInventoryAndContinuationToken:End:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
+          $log.info("KubernetesApiClient::getResourcesAndContinuationToken:End:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
         end
         if (!resourceInventory.nil? && !resourceInventory["metadata"].nil?)
           continuationToken = resourceInventory["metadata"]["continue"]
         end
       rescue => errorStr
-        $log.warn "KubernetesApiClient::getInventoryAndContinuationToken:Failed in parse json for continuation token: #{errorStr}"
+        $log.warn "KubernetesApiClient::getResourcesAndContinuationToken:Failed in parse json for continuation token: #{errorStr}"
         $log.debug_backtrace(errorStr.backtrace)
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
         resourceInventory = nil
       end
       # ensure
       return continuationToken, resourceInventory
-      # resourceInventory = nil
-      # end
-    end #getInventoryAndContinuationToken
+    end #getResourcesAndContinuationToken
   end
 end

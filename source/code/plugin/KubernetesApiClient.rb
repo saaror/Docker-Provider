@@ -559,6 +559,7 @@ class KubernetesApiClient
           $log.info("KubernetesApiClient::getResourcesAndContinuationToken:Start:Parsing data using yajl @ #{Time.now.utc.iso8601}")
           resourceInventory = Yajl::Parser.parse(StringIO.new(resourceInfo.body))
           $log.info("KubernetesApiClient::getResourcesAndContinuationToken:End:Parsing data using yajl @ #{Time.now.utc.iso8601}")
+          resourceInfo = nil
         end
         if (!resourceInventory.nil? && !resourceInventory["metadata"].nil?)
           continuationToken = resourceInventory["metadata"]["continue"]

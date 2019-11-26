@@ -70,8 +70,16 @@ module Fluent
 
         # Get services first so that we dont need to make a call for very chunk
         $log.info("in_kube_podinventory::enumerate : Getting services from Kube API @ #{Time.now.utc.iso8601}")
-        serviceList = JSON.parse(KubernetesApiClient.getKubeResourceInfo("services").body)
+        serviceInfo = KubernetesApiClient.getKubeResourceInfo("services")
+        # serviceList = JSON.parse(KubernetesApiClient.getKubeResourceInfo("services").body)
         $log.info("in_kube_podinventory::enumerate : Done getting services from Kube API @ #{Time.now.utc.iso8601}")
+
+        if !serviceInfo.nil?
+          $log.info("in_kube_podinventory::enumerate:Start:Parsing services data using yajl @ #{Time.now.utc.iso8601}")
+          serviceList = Yajl::Parser.parse(StringIO.new(serviceInfo.body))
+          $log.info("in_kube_podinventory::enumerate:End:Parsing services data using yajl @ #{Time.now.utc.iso8601}")
+          serviceInfo = nil
+        end
 
         # Initializing continuation token to nil
         continuationToken = nil
@@ -81,7 +89,7 @@ module Fluent
         if (!podInventory.nil? && !podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
           parse_and_emit_records(podInventory, serviceList, batchTime)
         else
-          $log.warn "in_kube_podinventory::parsePodsJsonAndProcess:Received empty podInventory"
+          $log.warn "in_kube_podinventory::enumerate:Received empty podInventory"
         end
 
         #If we receive a continuation token, make calls, process and flush data until we have processed all data
@@ -90,7 +98,7 @@ module Fluent
           if (!podInventory.nil? && !podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
             parse_and_emit_records(podInventory, serviceList, batchTime)
           else
-            $log.warn "in_kube_podinventory::parsePodsJsonAndProcess:Received empty podInventory"
+            $log.warn "in_kube_podinventory::enumerate:Received empty podInventory"
           end
         end
 

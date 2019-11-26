@@ -61,56 +61,69 @@ module Fluent
     end
 
     def enumerate
-      telemetryFlush = false
-      @podCount = 0
-      @controllerSet = Set.new []
-      @winContainerCount = 0
-      @controllerData = {}
-      currentTime = Time.now
-      batchTime = currentTime.utc.iso8601
+      begin
+        nodeInventory = nil
+        telemetryFlush = false
+        @podCount = 0
+        @controllerSet = Set.new []
+        @winContainerCount = 0
+        @controllerData = {}
+        currentTime = Time.now
+        batchTime = currentTime.utc.iso8601
 
-      # Initializing continuation token to nil
-      continuationToken = nil
-      $log.info("in_kube_nodes::enumerate : Getting nodes from Kube API @ #{Time.now.utc.iso8601}")
-      nodeInfo = KubernetesApiClient.getKubeResourceInfo("nodes?limit=#{@NODES_CHUNK_SIZE}")
-      $log.info("in_kube_nodes::enumerate : Done getting nodes from Kube API @ #{Time.now.utc.iso8601}")
-
-      
-      continuationToken = parsePodsJsonAndProcess(podInfo, serviceList, batchTime)
-
-      #If we receive a continuation token, make calls, process and flush data until we have processed all data
-      while (!continuationToken.nil? && !continuationToken.empty?)
-        $log.info("in_kube_podinventory::enumerate : Getting pods from Kube API using continuation token @ #{Time.now.utc.iso8601}")
-        podInfo = KubernetesApiClient.getKubeResourceInfo("pods?limit=#{@NODES_CHUNK_SIZE}&continue=#{continuationToken}")
-        $log.info("in_kube_podinventory::enumerate : Done getting pods from Kube API using continuation token @ #{Time.now.utc.iso8601}")
-        continuationToken = parsePodsJsonAndProcess(podInfo, serviceList, batchTime)
-      end
-
-      # Adding telemetry to send pod telemetry every 5 minutes
-      timeDifference = (DateTime.now.to_time.to_i - @@podTelemetryTimeTracker).abs
-      timeDifferenceInMinutes = timeDifference / 60
-      if (timeDifferenceInMinutes >= 5)
-        telemetryFlush = true
-      end
-
-      # Flush AppInsights telemetry once all the processing is done
-      if telemetryFlush == true
-        telemetryProperties = {}
-        telemetryProperties["Computer"] = @@hostName
-        ApplicationInsightsUtility.sendCustomEvent("KubePodInventoryHeartBeatEvent", telemetryProperties)
-        ApplicationInsightsUtility.sendMetricTelemetry("PodCount", @podCount, {})
-        telemetryProperties["ControllerData"] = @controllerData.to_json
-        ApplicationInsightsUtility.sendMetricTelemetry("ControllerCount", @controllerSet.length, telemetryProperties)
-        if @winContainerCount > 0
-          telemetryProperties["ClusterWideWindowsContainersCount"] = @winContainerCount
-          ApplicationInsightsUtility.sendCustomEvent("WindowsContainerInventoryEvent", telemetryProperties)
+        # Initializing continuation token to nil
+        continuationToken = nil
+        $log.info("in_kube_nodes::enumerate : Getting nodes from Kube API @ #{Time.now.utc.iso8601}")
+        continuationToken, nodeInventory = KubernetesApiClient.getResourcesAndContinuationToken("nodes?limit=#{@NODES_CHUNK_SIZE}")
+        $log.info("in_kube_nodes::enumerate : Done getting nodes from Kube API @ #{Time.now.utc.iso8601}")
+        if (!nodeInventory.nil? && !nodeInventory.empty? && nodeInventory.key?("items") && !nodeInventory["items"].empty?)
+          parse_and_emit_records(nodeInventory, batchTime)
+        else
+          $log.warn "in_kube_nodes::enumerate:Received empty nodeInventory"
         end
-        @@podTelemetryTimeTracker = DateTime.now.to_time.to_i
+
+        #If we receive a continuation token, make calls, process and flush data until we have processed all data
+        while (!continuationToken.nil? && !continuationToken.empty?)
+          continuationToken, nodeInventory = KubernetesApiClient.getResourcesAndContinuationToken("nodes?limit=#{@NODES_CHUNK_SIZE}&continue=#{continuationToken}")
+          if (!nodeInventory.nil? && !nodeInventory.empty? && nodeInventory.key?("items") && !nodeInventory["items"].empty?)
+            parse_and_emit_records(nodeInventory, batchTime)
+          else
+            $log.warn "in_kube_nodes::enumerate:Received empty nodeInventory"
+          end
+        end
+
+        # Setting this to nil so that we dont hold memory until GC kicks in
+        nodeInventory = nil
+
+        # Adding telemetry to send pod telemetry every 5 minutes
+        timeDifference = (DateTime.now.to_time.to_i - @@podTelemetryTimeTracker).abs
+        timeDifferenceInMinutes = timeDifference / 60
+        if (timeDifferenceInMinutes >= 5)
+          telemetryFlush = true
+        end
+
+        # Flush AppInsights telemetry once all the processing is done
+        if telemetryFlush == true
+          telemetryProperties = {}
+          telemetryProperties["Computer"] = @@hostName
+          ApplicationInsightsUtility.sendCustomEvent("KubePodInventoryHeartBeatEvent", telemetryProperties)
+          ApplicationInsightsUtility.sendMetricTelemetry("PodCount", @podCount, {})
+          telemetryProperties["ControllerData"] = @controllerData.to_json
+          ApplicationInsightsUtility.sendMetricTelemetry("ControllerCount", @controllerSet.length, telemetryProperties)
+          if @winContainerCount > 0
+            telemetryProperties["ClusterWideWindowsContainersCount"] = @winContainerCount
+            ApplicationInsightsUtility.sendCustomEvent("WindowsContainerInventoryEvent", telemetryProperties)
+          end
+          @@podTelemetryTimeTracker = DateTime.now.to_time.to_i
+        end
+      rescue => errorStr
+        $log.warn "in_kube_podinventory::enumerate:Failed in enumerate: #{errorStr}"
+        $log.debug_backtrace(errorStr.backtrace)
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
-    end
+    end # end enumerate
 
-
-    # def enumerate
+    # def parse_and_emit_records
     def parse_and_emit_records(nodeInventory, batchTime = Time.utc.iso8601)
       # currentTime = Time.now
       emitTime = currentTime.to_f
@@ -119,13 +132,13 @@ module Fluent
 
       # nodeInventory = nil
 
-      $log.info("in_kube_nodes::enumerate : Getting nodes from Kube API @ #{Time.now.utc.iso8601}")
-      nodeInfo = KubernetesApiClient.getKubeResourceInfo("nodes")
-      $log.info("in_kube_nodes::enumerate : Done getting nodes from Kube API @ #{Time.now.utc.iso8601}")
+      # $log.info("in_kube_nodes::enumerate : Getting nodes from Kube API @ #{Time.now.utc.iso8601}")
+      # nodeInfo = KubernetesApiClient.getKubeResourceInfo("nodes")
+      # $log.info("in_kube_nodes::enumerate : Done getting nodes from Kube API @ #{Time.now.utc.iso8601}")
 
-      if !nodeInfo.nil?
-        nodeInventory = Yajl::Parser.parse(StringIO.new(nodeInfo.body))
-      end
+      # if !nodeInfo.nil?
+      #   nodeInventory = Yajl::Parser.parse(StringIO.new(nodeInfo.body))
+      # end
 
       begin
         if (!nodeInventory.nil? && !nodeInventory.empty?)

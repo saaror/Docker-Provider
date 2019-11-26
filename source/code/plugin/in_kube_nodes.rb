@@ -60,36 +60,6 @@ module Fluent
       end
     end
 
-    def processNodeChunks(nodeInventory, batchTime)
-      begin
-        if (!nodeInventory.empty? && nodeInventory.key?("items") && !nodeInventory["items"].empty?)
-          parse_and_emit_records(nodeInventory, serviceList, batchTime)
-        else
-          $log.warn "in_kube_podinventory::processNodeChunks:Received empty nodeInventory"
-        end
-        podInfo = nil
-        podInventory = nil
-      rescue => errorStr
-        $log.warn "in_kube_podinventory::processPodChunks:Failed in process pod chunks: #{errorStr}"
-        $log.debug_backtrace(errorStr.backtrace)
-        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-      end
-    end
-
-    def parseNodesJsonAndProcess(nodeInfo, batchTime)
-      if !nodeInfo.nil?
-        $log.info("in_kube_podinventory::parsePodsJsonAndProcess:Start:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
-        podInventory = Yajl::Parser.parse(StringIO.new(nodeInfo.body))
-        $log.info("in_kube_podinventory::parsePodsJsonAndProcess:End:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
-      end
-      if (!podInventory.nil? && !podInventory["metadata"].nil?)
-        continuationToken = podInventory["metadata"]["continue"]
-      end
-      processPodChunks(podInventory, serviceList, batchTime)
-      return continuationToken
-    end
-
-
     def enumerate
       telemetryFlush = false
       @podCount = 0

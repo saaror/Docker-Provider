@@ -75,20 +75,27 @@ module Fluent
       # Initializing continuation token to nil
       continuationToken = nil
       $log.info("in_kube_podinventory::enumerate : Getting pods from Kube API @ #{Time.now.utc.iso8601}")
-      continuationToken, podInventory = getResourcesAndContinuationToken("pods?limit=#{@PODS_CHUNK_SIZE}")
+      continuationToken, podInventory = KubernetesApiClient.getResourcesAndContinuationToken("pods?limit=#{@PODS_CHUNK_SIZE}")
       $log.info("in_kube_podinventory::enumerate : Done getting pods from Kube API @ #{Time.now.utc.iso8601}")
+      if (!podInventory.nil? && !podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
+        parse_and_emit_records(podInventory, serviceList, batchTime)
+      else
+        $log.warn "in_kube_podinventory::parsePodsJsonAndProcess:Received empty podInventory"
+      end
 
       #If we receive a continuation token, make calls, process and flush data until we have processed all data
       while (!continuationToken.nil? && !continuationToken.empty?)
-        continuationToken, podInventory = getResourcesAndContinuationToken("pods?limit=#{@PODS_CHUNK_SIZE}&continue=#{continuationToken}")
-        if (!podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
+        continuationToken, podInventory = KubernetesApiClient.getResourcesAndContinuationToken("pods?limit=#{@PODS_CHUNK_SIZE}&continue=#{continuationToken}")
+        if (!podInventory.nil? && !podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
           parse_and_emit_records(podInventory, serviceList, batchTime)
-          podInventory = nil
-          serviceList = nil
         else
           $log.warn "in_kube_podinventory::parsePodsJsonAndProcess:Received empty podInventory"
         end
       end
+
+      # Setting these to nil so that we dont hold memory until GC kicks in
+      podInventory = nil
+      serviceList = nil
 
       # Adding telemetry to send pod telemetry every 5 minutes
       timeDifference = (DateTime.now.to_time.to_i - @@podTelemetryTimeTracker).abs

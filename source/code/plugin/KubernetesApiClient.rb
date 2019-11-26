@@ -2,7 +2,7 @@
 # frozen_string_literal: true
 
 class KubernetesApiClient
-  require 'yajl/json_gem'
+  require "yajl/json_gem"
   require "logger"
   require "net/http"
   require "net/https"
@@ -43,7 +43,7 @@ class KubernetesApiClient
           if !File.exist?(@@CaFile)
             raise "#{@@CaFile} doesnt exist"
           else
-            Net::HTTP.start(uri.host, uri.port, :use_ssl => true, :ca_file => @@CaFile, :verify_mode => OpenSSL::SSL::VERIFY_PEER ) do |http|
+            Net::HTTP.start(uri.host, uri.port, :use_ssl => true, :ca_file => @@CaFile, :verify_mode => OpenSSL::SSL::VERIFY_PEER) do |http|
               kubeApiRequest = Net::HTTP::Get.new(uri.request_uri)
               kubeApiRequest["Authorization"] = "Bearer " + getTokenStr
               @Log.info "KubernetesAPIClient::getKubeResourceInfo : Making request to #{uri.request_uri} @ #{Time.now.utc.iso8601}"
@@ -333,7 +333,7 @@ class KubernetesApiClient
       return containerLogs
     end
 
-    def getContainerResourceRequestsAndLimits(metricJSON, metricCategory, metricNameToCollect, metricNametoReturn, metricTime = Time.now.utc.iso8601 )
+    def getContainerResourceRequestsAndLimits(metricJSON, metricCategory, metricNameToCollect, metricNametoReturn, metricTime = Time.now.utc.iso8601)
       metricItems = []
       begin
         clusterId = getClusterId
@@ -546,5 +546,33 @@ class KubernetesApiClient
       end
       return metricValue
     end # getMetricNumericValue
+
+    # def parseJsonForContinuationToken(resourceInfo)
+    def getInventoryAndContinuationToken(uri)
+      continuationToken = nil
+      resourceInventory = nil
+      begin
+        $log.info("in_kube_podinventory::enumerate : Getting pods from Kube API using continuation token @ #{Time.now.utc.iso8601}")
+        resourceInfo = KubernetesApiClient.getKubeResourceInfo(uri)
+        $log.info("in_kube_podinventory::enumerate : Done getting pods from Kube API using continuation token @ #{Time.now.utc.iso8601}")
+        if !resourceInfo.nil?
+          $log.info("in_kube_podinventory::getInventoryAndContinuationToken:Start:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
+          resourceInventory = Yajl::Parser.parse(StringIO.new(resourceInfo.body))
+          $log.info("in_kube_podinventory::getInventoryAndContinuationToken:End:Parsing chunked data using yajl @ #{Time.now.utc.iso8601}")
+        end
+        if (!resourceInventory.nil? && !resourceInventory["metadata"].nil?)
+          continuationToken = resourceInventory["metadata"]["continue"]
+        end
+      rescue => errorStr
+        $log.warn "KubernetesApiClient::getInventoryAndContinuationToken:Failed in parse json for continuation token: #{errorStr}"
+        $log.debug_backtrace(errorStr.backtrace)
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+        resourceInventory = nil
+      end
+      # ensure
+      return continuationToken, resourceInventory
+      # resourceInventory = nil
+      # end
+    end #getInventoryAndContinuationToken
   end
 end

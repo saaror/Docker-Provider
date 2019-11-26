@@ -62,10 +62,10 @@ module Fluent
 
     def processNodeChunks(nodeInventory, batchTime)
       begin
-        if (!podInventory.empty? && podInventory.key?("items") && !podInventory["items"].empty?)
-          parse_and_emit_records(podInventory, serviceList, batchTime)
+        if (!nodeInventory.empty? && nodeInventory.key?("items") && !nodeInventory["items"].empty?)
+          parse_and_emit_records(nodeInventory, serviceList, batchTime)
         else
-          $log.warn "in_kube_podinventory::processPodChunks:Received empty podInventory"
+          $log.warn "in_kube_podinventory::processNodeChunks:Received empty nodeInventory"
         end
         podInfo = nil
         podInventory = nil

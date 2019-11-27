@@ -552,21 +552,20 @@ class KubernetesApiClient
       continuationToken = nil
       resourceInventory = nil
       begin
-        $log.info("KubernetesApiClient::getResourcesAndContinuationToken : Getting resources from Kube API using url: #{uri} @ #{Time.now.utc.iso8601}")
-        resourceInfo = KubernetesApiClient.getKubeResourceInfo(uri)
-        $log.info("KubernetesApiClient::getResourcesAndContinuationToken : Done getting resources from Kube API using url: #{uri} @ #{Time.now.utc.iso8601}")
+        @Log.info "KubernetesApiClient::getResourcesAndContinuationToken : Getting resources from Kube API using url: #{uri} @ #{Time.now.utc.iso8601}"
+        resourceInfo = getKubeResourceInfo(uri)
+        @Log.info "KubernetesApiClient::getResourcesAndContinuationToken : Done getting resources from Kube API using url: #{uri} @ #{Time.now.utc.iso8601}"
         if !resourceInfo.nil?
-          $log.info("KubernetesApiClient::getResourcesAndContinuationToken:Start:Parsing data using yajl @ #{Time.now.utc.iso8601}")
+          @Log.info "KubernetesApiClient::getResourcesAndContinuationToken:Start:Parsing data for #{uri} using yajl @ #{Time.now.utc.iso8601}"
           resourceInventory = Yajl::Parser.parse(StringIO.new(resourceInfo.body))
-          $log.info("KubernetesApiClient::getResourcesAndContinuationToken:End:Parsing data using yajl @ #{Time.now.utc.iso8601}")
+          @Log.info "KubernetesApiClient::getResourcesAndContinuationToken:End:Parsing data for #{uri} using yajl @ #{Time.now.utc.iso8601}"
           resourceInfo = nil
         end
         if (!resourceInventory.nil? && !resourceInventory["metadata"].nil?)
           continuationToken = resourceInventory["metadata"]["continue"]
         end
       rescue => errorStr
-        $log.warn "KubernetesApiClient::getResourcesAndContinuationToken:Failed in get resources and continuation token: #{errorStr}"
-        $log.debug_backtrace(errorStr.backtrace)
+        @Log.warn "KubernetesApiClient::getResourcesAndContinuationToken:Failed in get resources for #{uri} and continuation token: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
         resourceInventory = nil
       end

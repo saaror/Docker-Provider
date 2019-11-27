@@ -767,7 +767,6 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 				LogEntry:              stringMap["LogEntry"],
 				LogEntrySource:        stringMap["LogEntrySource"],
 				LogEntryTimeStamp:     stringMap["LogEntryTimeStamp"],
-				LogEntryTimeOfCommand: start.Format(time.RFC3339),
 				SourceSystem:          stringMap["SourceSystem"],
 				Computer:              Computer,
 				Image:                 stringMap["Image"],

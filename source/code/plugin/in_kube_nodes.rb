@@ -79,20 +79,16 @@ module Fluent
 
         #If we receive a continuation token, make calls, process and flush data until we have processed all data
         while (!continuationToken.nil? && !continuationToken.empty?)
-          $log.warn "in_kube_nodes: in continuation token block: start"
-          $log.warn "in_kube_nodes: continuation token: #{continuationToken}"
           continuationToken, nodeInventory = KubernetesApiClient.getResourcesAndContinuationToken("nodes?limit=#{@NODES_CHUNK_SIZE}&continue=#{continuationToken}")
           if (!nodeInventory.nil? && !nodeInventory.empty? && nodeInventory.key?("items") && !nodeInventory["items"].nil? && !nodeInventory["items"].empty?)
             parse_and_emit_records(nodeInventory, batchTime)
           else
             $log.warn "in_kube_nodes::enumerate:Received empty nodeInventory"
           end
-          $log.warn "in_kube_nodes: in continuation token block: end"
         end
 
         # Setting this to nil so that we dont hold memory until GC kicks in
         nodeInventory = nil
-
       rescue => errorStr
         $log.warn "in_kube_nodes::enumerate:Failed in enumerate: #{errorStr}"
         $log.debug_backtrace(errorStr.backtrace)
@@ -102,11 +98,10 @@ module Fluent
 
     # def parse_and_emit_records
     def parse_and_emit_records(nodeInventory, batchTime = Time.utc.iso8601)
-      $log.warn "in_kube_nodes::parse_and_emit_records:Start #{Time.now.utc.iso8601}"
-      emitTime = currentTime.to_f
-      telemetrySent = false
-
       begin
+        currentTime = Time.now
+        emitTime = currentTime.to_f
+        telemetrySent = false
         eventStream = MultiEventStream.new
         containerNodeInventoryEventStream = MultiEventStream.new
         #get node inventory
@@ -211,7 +206,6 @@ module Fluent
             telemetrySent = true
           end
         end
-        $log.warn "in_kube_nodes::Done iterating through all the nodes - emitting"
         router.emit_stream(@tag, eventStream) if eventStream
         router.emit_stream(@@MDMKubeNodeInventoryTag, eventStream) if eventStream
         router.emit_stream(@@ContainerNodeInventoryTag, containerNodeInventoryEventStream) if containerNodeInventoryEventStream
@@ -225,7 +219,6 @@ module Fluent
         #:optimize:kubeperf merge
         begin
           #if(!nodeInventory.empty?)
-        $log.warn "in_kube_nodes::Perf Start"
           nodeMetricDataItems = []
           #allocatable metrics @ node level
           nodeMetricDataItems.concat(KubernetesApiClient.parseNodeLimits(nodeInventory, "allocatable", "cpu", "cpuAllocatableNanoCores", batchTime))
@@ -243,7 +236,6 @@ module Fluent
           end
           #end
           router.emit_stream(@@kubeperfTag, kubePerfEventStream) if kubePerfEventStream
-        $log.warn "in_kube_nodes::Perf End"
         rescue => errorStr
           $log.warn "Failed in enumerate for KubePerf from in_kube_nodes : #{errorStr}"
           $log.debug_backtrace(errorStr.backtrace)

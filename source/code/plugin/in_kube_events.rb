@@ -56,9 +56,9 @@ module Fluent
 
         # Initializing continuation token to nil
         continuationToken = nil
-        $log.info("in_kube_events::enumerate : Getting nodes from Kube API @ #{Time.now.utc.iso8601}")
+        $log.info("in_kube_events::enumerate : Getting events from Kube API @ #{Time.now.utc.iso8601}")
         continuationToken, eventList = KubernetesApiClient.getResourcesAndContinuationToken("events?fieldSelector=type!=Normal&limit=#{@EVENTS_CHUNK_SIZE}")
-        $log.info("in_kube_events::enumerate : Done getting nodes from Kube API @ #{Time.now.utc.iso8601}")
+        $log.info("in_kube_events::enumerate : Done getting events from Kube API @ #{Time.now.utc.iso8601}")
         if (!eventList.nil? && !eventList.empty? && eventList.key?("items") && !eventList["items"].nil? && !eventList["items"].empty?)
           newEventQueryState = parse_and_emit_records(eventList, eventQueryState, newEventQueryState, batchTime)
         else
@@ -85,25 +85,10 @@ module Fluent
       end
     end # end enumerate
 
-    # def enumerate(eventList = nil)
     def parse_and_emit_records(events, eventQueryState, newEventQueryState, batchTime = Time.utc.iso8601)
       currentTime = Time.now
       emitTime = currentTime.to_f
-      # batchTime = currentTime.utc.iso8601
-
-      # events = eventList
-      # $log.info("in_kube_events::enumerate : Getting events from Kube API @ #{Time.now.utc.iso8601}")
-      # eventInfo = KubernetesApiClient.getKubeResourceInfo("events?fieldSelector=type!=Normal")
-      # $log.info("in_kube_events::enumerate : Done getting events from Kube API @ #{Time.now.utc.iso8601}")
-
-      # if !eventInfo.nil?
-      #   events = Yajl::Parser.parse(StringIO.new(eventInfo.body))
-      # end
-
-      # eventQueryState = getEventQueryState
-      # newEventQueryState = []
       begin
-        # if (!events.nil? && !events.empty? && !events["items"].nil?)
         eventStream = MultiEventStream.new
         events["items"].each do |items|
           record = {}
@@ -140,8 +125,6 @@ module Fluent
           eventStream.add(emitTime, wrapper) if wrapper
         end
         router.emit_stream(@tag, eventStream) if eventStream
-        # end
-        # writeEventQueryState(newEventQueryState)
       rescue => errorStr
         $log.debug_backtrace(errorStr.backtrace)
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)

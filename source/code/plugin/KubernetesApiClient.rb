@@ -547,7 +547,6 @@ class KubernetesApiClient
       return metricValue
     end # getMetricNumericValue
 
-    # def parseJsonForContinuationToken(resourceInfo)
     def getResourcesAndContinuationToken(uri)
       continuationToken = nil
       resourceInventory = nil

@@ -96,7 +96,6 @@ module Fluent
       end
     end # end enumerate
 
-    # def parse_and_emit_records
     def parse_and_emit_records(nodeInventory, batchTime = Time.utc.iso8601)
       begin
         currentTime = Time.now

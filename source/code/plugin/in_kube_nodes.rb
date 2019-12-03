@@ -30,7 +30,7 @@ module Fluent
       require_relative "ApplicationInsightsUtility"
       require_relative "oms_common"
       require_relative "omslog"
-      @NODES_CHUNK_SIZE = "350"
+      @NODES_CHUNK_SIZE = "400"
     end
 
     config_param :run_interval, :time, :default => 60

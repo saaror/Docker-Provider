@@ -17,7 +17,9 @@ module Fluent
       require_relative "oms_common"
       require_relative "omslog"
       require_relative "ApplicationInsightsUtility"
-      @EVENTS_CHUNK_SIZE = 1000
+      
+      # 30000 events account to approximately 5MB
+      @EVENTS_CHUNK_SIZE = 30000
     end
 
     config_param :run_interval, :time, :default => 60

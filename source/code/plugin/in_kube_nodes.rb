@@ -5,7 +5,6 @@ module Fluent
   class Kube_nodeInventory_Input < Input
     Plugin.register_input("kubenodeinventory", self)
 
-    # @@ContainerNodeInventoryTag = "oms.containerinsights.ContainerNodeInventory"
     @@MDMKubeNodeInventoryTag = "mdm.kubenodeinventory"
     @@promConfigMountPath = "/etc/config/settings/prometheus-data-collection-settings"
     @@AzStackCloudFileName = "/etc/kubernetes/host/azurestackcloud.json"
@@ -102,15 +101,9 @@ module Fluent
         emitTime = currentTime.to_f
         telemetrySent = false
         eventStream = MultiEventStream.new
-        # containerNodeInventoryEventStream = MultiEventStream.new
         #get node inventory
         nodeInventory["items"].each do |items|
           record = {}
-          # Sending records for ContainerNodeInventory
-          # containerNodeInventoryRecord = {}
-          # containerNodeInventoryRecord["CollectionTime"] = batchTime #This is the time that is mapped to become TimeGenerated
-          # containerNodeInventoryRecord["Computer"] = items["metadata"]["name"]
-
           record["CollectionTime"] = batchTime #This is the time that is mapped to become TimeGenerated
           record["Computer"] = items["metadata"]["name"]
           record["ClusterName"] = KubernetesApiClient.getClusterName
@@ -159,18 +152,9 @@ module Fluent
           record["KubeProxyVersion"] = nodeInfo["kubeProxyVersion"]
           record["OperatingSystem"] = nodeInfo["osImage"]
 
-          # containerNodeInventoryRecord["OperatingSystem"] = nodeInfo["osImage"]
           dockerVersion = nodeInfo["containerRuntimeVersion"]
           dockerVersion.slice! "docker://"
           record["DockerVersion"] = dockerVersion
-          # containerNodeInventoryRecord["DockerVersion"] = dockerVersion
-          # ContainerNodeInventory data for docker version and operating system.
-          # containerNodeInventoryWrapper = {
-          #   "DataType" => "CONTAINER_NODE_INVENTORY_BLOB",
-          #   "IPName" => "ContainerInsights",
-          #   "DataItems" => [containerNodeInventoryRecord.each { |k, v| containerNodeInventoryRecord[k] = v }],
-          # }
-          # containerNodeInventoryEventStream.add(emitTime, containerNodeInventoryWrapper) if containerNodeInventoryWrapper
 
           wrapper = {
             "DataType" => "KUBE_NODE_INVENTORY_BLOB",
@@ -210,7 +194,6 @@ module Fluent
         end
         router.emit_stream(@tag, eventStream) if eventStream
         router.emit_stream(@@MDMKubeNodeInventoryTag, eventStream) if eventStream
-        # router.emit_stream(@@ContainerNodeInventoryTag, containerNodeInventoryEventStream) if containerNodeInventoryEventStream
         if telemetrySent == true
           @@nodeTelemetryTimeTracker = DateTime.now.to_time.to_i
         end

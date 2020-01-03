@@ -29,6 +29,8 @@ class CAdvisorMetricsAPIClient
   @dsPromFieldDropCount = ENV["TELEMETRY_DS_PROM_FIELDDROP_LENGTH"]
   @dsPromUrlCount = ENV["TELEMETRY_DS_PROM_URLS_LENGTH"]
 
+  @cAdvisorMetricsSecurePort = ENV["IS_SECURE_CADVISOR_PORT"]
+
   @LogPath = "/var/opt/microsoft/docker-cimprov/log/kubernetes_perf_log.txt"
   @Log = Logger.new(@LogPath, 2, 10 * 1048576) #keep last 2 files, max log file size = 10M
   #   @@rxBytesLast = nil
@@ -63,12 +65,11 @@ class CAdvisorMetricsAPIClient
       response = nil
       @Log.info "Getting CAdvisor Uri"
       begin
-        # Check to see if omsagent needs to use 10255(insecure) port or 10250(secure) port
-        useSecureCAdvisorPort = ENV["IS_SECURE_CADVISOR_PORT"]
         cAdvisorSecurePort = true
-        if !useSecureCAdvisorPort.nil? && !!useSecureCAdvisorPort == !useSecureCAdvisorPort
+        # Check to see if omsagent needs to use 10255(insecure) port or 10250(secure) port
+        if @cAdvisorMetricsSecurePort && @cAdvisorMetricsSecurePort.value == false
           cAdvisorSecurePort = false
-        end
+        else
 
         cAdvisorUri = getCAdvisorUri(winNode, cAdvisorSecurePort)
         bearerToken = File.read("/var/run/secrets/kubernetes.io/serviceaccount/token")
@@ -241,6 +242,7 @@ class CAdvisorMetricsAPIClient
                     telemetryProps["PodName"] = podName
                     telemetryProps["ContainerName"] = containerName
                     telemetryProps["Computer"] = hostName
+                    telemetryProps["CAdvisorIsSecure"] = @cAdvisorMetricsSecurePort
                     #telemetry about log collections settings
                     if (File.file?(@configMapMountPath))
                       telemetryProps["clustercustomsettings"] = true
@@ -442,6 +444,7 @@ class CAdvisorMetricsAPIClient
                     telemetryProps["PodName"] = podName
                     telemetryProps["ContainerName"] = containerName
                     telemetryProps["Computer"] = hostName
+                    telemetryProps["CAdvisorIsSecure"] = @cAdvisorMetricsSecurePort
                     ApplicationInsightsUtility.sendMetricTelemetry(metricNametoReturn, metricValue, telemetryProps)
                   end
                 end

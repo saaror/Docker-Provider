@@ -67,7 +67,7 @@ class CAdvisorMetricsAPIClient
       begin
         cAdvisorSecurePort = true
         # Check to see if omsagent needs to use 10255(insecure) port or 10250(secure) port
-        if !@cAdvisorMetricsSecurePort.nil? && !!@cAdvisorMetricsSecurePort == false
+        if !@cAdvisorMetricsSecurePort.nil? && @cAdvisorMetricsSecurePort == "false"
           cAdvisorSecurePort = false
         end
 
@@ -76,7 +76,7 @@ class CAdvisorMetricsAPIClient
 
         if !cAdvisorUri.nil?
           uri = URI.parse(cAdvisorUri)
-          if cAdvisorSecurePort
+          if !!cAdvisorSecurePort == true
             Net::HTTP.start(uri.host, uri.port,
                             :use_ssl => true, :open_timeout => 20, :read_timeout => 40,
                             :ca_file => "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt",
@@ -105,7 +105,7 @@ class CAdvisorMetricsAPIClient
 
     def getCAdvisorUri(winNode, cAdvisorSecurePort)
       begin
-        if cAdvisorSecurePort
+        if !!cAdvisorSecurePort == true
           defaultHost = "https://localhost:10250"
         else
           defaultHost = "http://localhost:10255"
@@ -119,7 +119,7 @@ class CAdvisorMetricsAPIClient
         end
         if !nodeIP.nil?
           @Log.info("Using #{nodeIP + relativeUri} for CAdvisor Uri")
-          if cAdvisorSecurePort
+          if !!cAdvisorSecurePort == true
             return "https://#{nodeIP}:10250" + relativeUri
           else
             return "http://#{nodeIP}:10255" + relativeUri

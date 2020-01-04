@@ -67,7 +67,7 @@ class CAdvisorMetricsAPIClient
       begin
         cAdvisorSecurePort = true
         # Check to see if omsagent needs to use 10255(insecure) port or 10250(secure) port
-        if @cAdvisorMetricsSecurePort && @cAdvisorMetricsSecurePort.value == false
+        if !@cAdvisorMetricsSecurePort.nil? && !!@cAdvisorMetricsSecurePort == false
           cAdvisorSecurePort = false
         end
 

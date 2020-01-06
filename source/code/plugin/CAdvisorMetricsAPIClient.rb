@@ -73,7 +73,8 @@ class CAdvisorMetricsAPIClient
 
         cAdvisorUri = getCAdvisorUri(winNode, cAdvisorSecurePort)
         bearerToken = File.read("/var/run/secrets/kubernetes.io/serviceaccount/token")
-
+        @Log.info "cAdvisorUri: #{cAdvisorUri}"
+        
         if !cAdvisorUri.nil?
           uri = URI.parse(cAdvisorUri)
           if !!cAdvisorSecurePort == true

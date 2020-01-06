@@ -65,16 +65,16 @@ class CAdvisorMetricsAPIClient
       response = nil
       @Log.info "Getting CAdvisor Uri"
       begin
-        cAdvisorSecurePort = true
+        cAdvisorSecurePort = false
         # Check to see if omsagent needs to use 10255(insecure) port or 10250(secure) port
-        if !@cAdvisorMetricsSecurePort.nil? && @cAdvisorMetricsSecurePort == "false"
-          cAdvisorSecurePort = false
+        if !@cAdvisorMetricsSecurePort.nil? && @cAdvisorMetricsSecurePort == "true"
+          cAdvisorSecurePort = true
         end
 
         cAdvisorUri = getCAdvisorUri(winNode, cAdvisorSecurePort)
         bearerToken = File.read("/var/run/secrets/kubernetes.io/serviceaccount/token")
         @Log.info "cAdvisorUri: #{cAdvisorUri}"
-        
+
         if !cAdvisorUri.nil?
           uri = URI.parse(cAdvisorUri)
           if !!cAdvisorSecurePort == true

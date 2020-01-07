@@ -445,7 +445,6 @@ class CAdvisorMetricsAPIClient
                     telemetryProps["PodName"] = podName
                     telemetryProps["ContainerName"] = containerName
                     telemetryProps["Computer"] = hostName
-                    telemetryProps["CAdvisorIsSecure"] = @cAdvisorMetricsSecurePort
                     ApplicationInsightsUtility.sendMetricTelemetry(metricNametoReturn, metricValue, telemetryProps)
                   end
                 end

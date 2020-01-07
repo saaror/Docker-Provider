@@ -11,6 +11,10 @@ additional questions or comments.
 
 Note : The agent version(s) below has dates (ciprod<mmddyyyy>), which indicate the agent build dates (not release dates)
 
+### 01/07/2020 -
+##### Version microsoft/oms:ciprod01072020 Version mcr.microsoft.com/azuremonitor/containerinsights/ciprod:ciprod01072020
+- Switch between 10255(old) and 10250(new) ports for cadvisor for older and newer versions of kubernetes
+
 ### 12/04/2019 -
 ##### Version microsoft/oms:ciprod12042019 Version mcr.microsoft.com/azuremonitor/containerinsights/ciprod:ciprod12042019
 - Fix scheduler for all input plugins

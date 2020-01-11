@@ -12,7 +12,7 @@ module Fluent
       require "net/http"
       require "net/https"
       require "uri"
-      require 'yajl/json_gem'
+      require "yajl/json_gem"
       require_relative "KubernetesApiClient"
       require_relative "ApplicationInsightsUtility"
 
@@ -20,11 +20,16 @@ module Fluent
       @@grant_type = "client_credentials"
       @@azure_json_path = "/etc/kubernetes/host/azure.json"
       @@post_request_url_template = "https://%{aks_region}.monitoring.azure.com%{aks_resource_id}/metrics"
-      @@token_url_template = "https://login.microsoftonline.com/%{tenant_id}/oauth2/token"
+      @@aad_token_url_template = "https://login.microsoftonline.com/%{tenant_id}/oauth2/token"
+
+      # msiEndpoint is the well known endpoint for getting MSI authentications tokens
+      @@msi_endpoint = "http://169.254.169.254/metadata/identity/oauth2/token"
+      @@userAssignedClientId = ENV["AzureUserAssignedIdentityClientID"]
+
       @@plugin_name = "AKSCustomMetricsMDM"
 
       @data_hash = {}
-      @token_url = nil
+      @aad_token_url = nil
       @http_client = nil
       @token_expiry_time = Time.now
       @cached_access_token = String.new
@@ -32,6 +37,8 @@ module Fluent
       @first_post_attempt_made = false
       @can_send_data_to_mdm = true
       @last_telemetry_sent_time = nil
+      # Setting useMsi to false by default
+      @useMsi = false
     end
 
     def configure(conf)
@@ -56,12 +63,21 @@ module Fluent
           @log.info "Environment Variable AKS_REGION is not set.. "
           @can_send_data_to_mdm = false
         else
-          aks_region = aks_region.gsub(" ","")
+          aks_region = aks_region.gsub(" ", "")
         end
 
         if @can_send_data_to_mdm
           @log.info "MDM Metrics supported in #{aks_region} region"
-          @token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+
+          # Check to see if "useManagedIdentityExtension" is set to true
+          useManagedIdentityExtension = @data_hash["useManagedIdentityExtension"]
+          if (!useManagedIdentityExtension.nil? && (useManagedIdentityExtension.casecmp("true") == 0))
+            @useMsi = true
+          else
+            @useMsi = false
+            @token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+          end
+
           @cached_access_token = get_access_token
           @@post_request_url = @@post_request_url_template % {aks_region: aks_region, aks_resource_id: aks_resource_id}
           @post_request_uri = URI.parse(@@post_request_url)
@@ -76,27 +92,47 @@ module Fluent
         @can_send_data_to_mdm = false
         return
       end
-
     end
 
     # get the access token only if the time to expiry is less than 5 minutes
     def get_access_token
       if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # token is valid for 60 minutes. Refresh token 5 minutes from expiration
         @log.info "Refreshing access token for out_mdm plugin.."
-        token_uri = URI.parse(@token_url)
+
+        if (!!@useMsi)
+          token_uri = URI.parse(@msi_endpoint)
+        else
+          aad_token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+          token_uri = URI.parse(aad_token_url)
+        end
+
         http_access_token = Net::HTTP.new(token_uri.host, token_uri.port)
         http_access_token.use_ssl = true
         token_request = Net::HTTP::Post.new(token_uri.request_uri)
-        token_request.set_form_data(
-          {
-            "grant_type" => @@grant_type,
-            "client_id" => @data_hash["aadClientId"],
-            "client_secret" => @data_hash["aadClientSecret"],
-            "resource" => @@token_resource_url,
-          }
-        )
+
+        #TODO:Add nil checks for env vars
+        if (!!@useMsi && !@@userAssignedClientId.nil?)
+          token_request =
+            token_request.set_form_data(
+              {
+                "grant_type" => @@grant_type,
+                "client_id" => @@userAssignedClientId,
+                "resource" => @@token_resource_url,
+              }
+            )
+        else
+          token_request.set_form_data(
+            {
+              "grant_type" => @@grant_type,
+              "client_id" => @data_hash["aadClientId"],
+              "client_secret" => @data_hash["aadClientSecret"],
+              "resource" => @@token_resource_url,
+            }
+          )
+        end
 
         token_response = http_access_token.request(token_request)
+
         # Handle the case where the response is not 200
         parsed_json = JSON.parse(token_response.body)
         @token_expiry_time = Time.now + 59 * 60 # set the expiry time to be ~one hour from current time
@@ -162,10 +198,9 @@ module Fluent
         response.value # this throws for non 200 HTTP response code
         @log.info "HTTP Post Response Code : #{response.code}"
         if @last_telemetry_sent_time.nil? || @last_telemetry_sent_time + 60 * 60 < Time.now
-            ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMSendSuccessful", {})
-            @last_telemetry_sent_time = Time.now
+          ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMSendSuccessful", {})
+          @last_telemetry_sent_time = Time.now
         end
-
       rescue Net::HTTPServerException => e
         @log.info "Failed to Post Metrics to MDM : #{e} Response: #{response}"
         @log.debug_backtrace(e.backtrace)

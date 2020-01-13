@@ -69,14 +69,26 @@ module Fluent
         if @can_send_data_to_mdm
           @log.info "MDM Metrics supported in #{aks_region} region"
 
-          # Check to see if "useManagedIdentityExtension" is set to true
-          useManagedIdentityExtension = @data_hash["useManagedIdentityExtension"]
-          if (!useManagedIdentityExtension.nil? && (useManagedIdentityExtension.casecmp("true") == 0))
-            @useMsi = true
-          else
+          # Check to see if SP exists, if it does use SP. Else, use msi
+          sp_client_id = @data_hash["aadClientId"]
+          sp_client_secret = @data_hash["aadClientSecret"]
+
+          if (!sp_client_id.nil? && !sp_client_id.empty? && !sp_client_secret.nil? && !sp_client_secret.empty?)
             @useMsi = false
             @token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+          else
+            @useMsi = true
           end
+
+          #Commenting this out in case we need to check msi first
+          # Check to see if "useManagedIdentityExtension" is set to true
+          # useManagedIdentityExtension = @data_hash["useManagedIdentityExtension"]
+          # if (!useManagedIdentityExtension.nil? && (useManagedIdentityExtension.casecmp("true") == 0))
+          #   @useMsi = true
+          # else
+          #   @useMsi = false
+          #   @token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+          # end
 
           @cached_access_token = get_access_token
           @@post_request_url = @@post_request_url_template % {aks_region: aks_region, aks_resource_id: aks_resource_id}
@@ -111,7 +123,7 @@ module Fluent
         token_request = Net::HTTP::Post.new(token_uri.request_uri)
 
         #TODO:Add nil checks for env vars
-        if (!!@useMsi && !@@userAssignedClientId.nil?)
+        if (!!@useMsi && @@userAssignedClientId.nil?)
           token_request =
             token_request.set_form_data(
               {

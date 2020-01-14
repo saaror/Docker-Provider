@@ -77,7 +77,7 @@ module Fluent
 
           if (!sp_client_id.nil? && !sp_client_id.empty? && !sp_client_secret.nil? && !sp_client_secret.empty?)
             @useMsi = false
-            aad_token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+            aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
             @parsed_token_uri = URI.parse(aad_token_url)
           else
             @useMsi = true
@@ -124,7 +124,7 @@ module Fluent
 
         http_access_token = Net::HTTP.new(@parsed_token_uri.host, @parsed_token_uri.port)
         http_access_token.use_ssl = true
-        token_request = Net::HTTP::Post.new(token_uri.request_uri)
+        token_request = Net::HTTP::Post.new(@parsed_token_uri.request_uri)
 
         if (!!@useMsi)
           if(@@userAssignedClientId.nil?)

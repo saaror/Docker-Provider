@@ -127,6 +127,7 @@ module Fluent
         token_request = Net::HTTP::Post.new(@parsed_token_uri.request_uri)
 
         if (!!@useMsi)
+          @log.info "Using msi to get the token to post MDM data"
           if(@@userAssignedClientId.nil?)
             @log.info "User assigned client id is nil, making request with empty client id"
           end
@@ -139,6 +140,7 @@ module Fluent
               }
             )
         else
+          @log.info "Using SP to get the token to post MDM data"
           token_request.set_form_data(
             {
               "grant_type" => @@grant_type,

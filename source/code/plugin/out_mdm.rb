@@ -23,8 +23,9 @@ module Fluent
       @@aad_token_url_template = "https://login.microsoftonline.com/%{tenant_id}/oauth2/token"
 
       # msiEndpoint is the well known endpoint for getting MSI authentications tokens
-      @@msi_endpoint = "http://169.254.169.254/metadata/identity/oauth2/token"
-      @@userAssignedClientId = ENV["AzureUserAssignedIdentityClientID"]
+      @@msi_endpoint_template = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&client_id=%{user_assigned_client_id}&resource=%{resource}"
+      # @@userAssignedClientId = ENV["AzureUserAssignedIdentityClientID"]
+      @@userAssignedClientId = "8bc13436-46d6-4a1c-b75e-92d676001d23"
 
       @@plugin_name = "AKSCustomMetricsMDM"
 
@@ -75,26 +76,35 @@ module Fluent
           sp_client_id = @data_hash["aadClientId"]
           sp_client_secret = @data_hash["aadClientSecret"]
 
-          if (!sp_client_id.nil? && !sp_client_id.empty? && !sp_client_secret.nil? && !sp_client_secret.empty?)
+          #Uncomment this if you want to check sp first
+          # if (!sp_client_id.nil? && !sp_client_id.empty? && !sp_client_secret.nil? && !sp_client_secret.empty?)
+          #   @useMsi = false
+          #   aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
+          #   @parsed_token_uri = URI.parse(aad_token_url)
+          # else
+          #   @useMsi = true
+          #   @parsed_token_uri = URI.parse(@msi_endpoint)
+          # end
+
+          # Check to see if "useManagedIdentityExtension" is set to true
+          useManagedIdentityExtension = @data_hash["useManagedIdentityExtension"]
+          if (!useManagedIdentityExtension.nil? && useManagedIdentityExtension == true)
+            if !@@userAssignedClientId.nil? && !@@userAssignedClientId.empty?
+              @useMsi = true
+              msi_endpoint = @@msi_endpoint_template % {user_assigned_client_id: @@userAssignedClientId, resource: @@token_resource_url}
+              @parsed_token_uri = URI.parse(msi_endpoint)
+              @cached_access_token = get_access_token
+            else
+              @can_send_data_to_mdm = false
+              @log.info "User assigned client id is nil or empty, cannot post data to MDM using MSI"
+            end
+          else
             @useMsi = false
             aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
             @parsed_token_uri = URI.parse(aad_token_url)
-          else
-            @useMsi = true
-            @parsed_token_uri = URI.parse(@msi_endpoint)
+            @cached_access_token = get_access_token
           end
 
-          #Commenting this out in case we need to check msi first
-          # Check to see if "useManagedIdentityExtension" is set to true
-          # useManagedIdentityExtension = @data_hash["useManagedIdentityExtension"]
-          # if (!useManagedIdentityExtension.nil? && (useManagedIdentityExtension.casecmp("true") == 0))
-          #   @useMsi = true
-          # else
-          #   @useMsi = false
-          #   @token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
-          # end
-
-          @cached_access_token = get_access_token
           @@post_request_url = @@post_request_url_template % {aks_region: aks_region, aks_resource_id: aks_resource_id}
           @post_request_uri = URI.parse(@@post_request_url)
           @http_client = Net::HTTP.new(@post_request_uri.host, @post_request_uri.port)
@@ -112,53 +122,43 @@ module Fluent
 
     # get the access token only if the time to expiry is less than 5 minutes
     def get_access_token
-      if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # token is valid for 60 minutes. Refresh token 5 minutes from expiration
-        @log.info "Refreshing access token for out_mdm plugin.."
+      begin
+        if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # token is valid for 60 minutes. Refresh token 5 minutes from expiration
+          @log.info "Refreshing access token for out_mdm plugin.."
 
-        # if (!!@useMsi)
-        #   token_uri = URI.parse(@msi_endpoint)
-        # else
-        #   aad_token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
-        #   token_uri = URI.parse(aad_token_url)
-        # end
+          http_access_token = Net::HTTP.new(@parsed_token_uri.host, @parsed_token_uri.port)
 
-        http_access_token = Net::HTTP.new(@parsed_token_uri.host, @parsed_token_uri.port)
-        http_access_token.use_ssl = true
-        token_request = Net::HTTP::Post.new(@parsed_token_uri.request_uri)
-
-        if (!!@useMsi)
-          @log.info "Using msi to get the token to post MDM data"
-          if(@@userAssignedClientId.nil?)
-            @log.info "User assigned client id is nil, making request with empty client id"
-          end
-          token_request =
+          if (!!@useMsi)
+            @log.info "Using msi to get the token to post MDM data"
+            http_access_token.use_ssl = false
+            token_request = Net::HTTP::Get.new(@parsed_token_uri.request_uri)
+            token_request["Metadata"] = true
+            
+          else
+            @log.info "Using SP to get the token to post MDM data"
+            http_access_token.use_ssl = true
+            token_request = Net::HTTP::Post.new(@parsed_token_uri.request_uri)
             token_request.set_form_data(
               {
                 "grant_type" => @@grant_type,
-                "client_id" => (@@userAssignedClientId.nil?)? "" : @@userAssignedClientId,
+                "client_id" => @data_hash["aadClientId"],
+                "client_secret" => @data_hash["aadClientSecret"],
                 "resource" => @@token_resource_url,
               }
             )
-        else
-          @log.info "Using SP to get the token to post MDM data"
-          token_request.set_form_data(
-            {
-              "grant_type" => @@grant_type,
-              "client_id" => @data_hash["aadClientId"],
-              "client_secret" => @data_hash["aadClientSecret"],
-              "resource" => @@token_resource_url,
-            }
-          )
+          end
+
+          @log.info "making request.."
+          token_response = http_access_token.request(token_request)
+          # Handle the case where the response is not 200
+          parsed_json = JSON.parse(token_response.body)
+          @token_expiry_time = Time.now + 59 * 60 # set the expiry time to be ~one hour from current time
+          @cached_access_token = parsed_json["access_token"]
         end
-
-        token_response = http_access_token.request(token_request)
-
-        # Handle the case where the response is not 200
-        parsed_json = JSON.parse(token_response.body)
-        @token_expiry_time = Time.now + 59 * 60 # set the expiry time to be ~one hour from current time
-        @cached_access_token = parsed_json["access_token"]
+        @cached_access_token
+      rescue => err
+        @log.info "Exception in get_access_token: #{err}"
       end
-      @cached_access_token
     end
 
     def write_status_file(success, message)

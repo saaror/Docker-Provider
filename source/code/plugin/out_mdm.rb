@@ -29,7 +29,9 @@ module Fluent
       @@plugin_name = "AKSCustomMetricsMDM"
 
       @data_hash = {}
-      @aad_token_url = nil
+      #@aad_token_url = nil
+      #@token_url = nil
+      @parsed_token_uri = nil
       @http_client = nil
       @token_expiry_time = Time.now
       @cached_access_token = String.new
@@ -75,9 +77,11 @@ module Fluent
 
           if (!sp_client_id.nil? && !sp_client_id.empty? && !sp_client_secret.nil? && !sp_client_secret.empty?)
             @useMsi = false
-            @token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+            aad_token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+            @parsed_token_uri = URI.parse(aad_token_url)
           else
             @useMsi = true
+            @parsed_token_uri = URI.parse(@msi_endpoint)
           end
 
           #Commenting this out in case we need to check msi first
@@ -111,24 +115,26 @@ module Fluent
       if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # token is valid for 60 minutes. Refresh token 5 minutes from expiration
         @log.info "Refreshing access token for out_mdm plugin.."
 
-        if (!!@useMsi)
-          token_uri = URI.parse(@msi_endpoint)
-        else
-          aad_token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
-          token_uri = URI.parse(aad_token_url)
-        end
+        # if (!!@useMsi)
+        #   token_uri = URI.parse(@msi_endpoint)
+        # else
+        #   aad_token_url = @@token_url_template % {tenant_id: @data_hash["tenantId"]}
+        #   token_uri = URI.parse(aad_token_url)
+        # end
 
-        http_access_token = Net::HTTP.new(token_uri.host, token_uri.port)
+        http_access_token = Net::HTTP.new(@parsed_token_uri.host, @parsed_token_uri.port)
         http_access_token.use_ssl = true
         token_request = Net::HTTP::Post.new(token_uri.request_uri)
 
-        #TODO:Add nil checks for env vars
-        if (!!@useMsi && @@userAssignedClientId.nil?)
+        if (!!@useMsi)
+          if(@@userAssignedClientId.nil?)
+            @log.info "User assigned client id is nil, making request with empty client id"
+          end
           token_request =
             token_request.set_form_data(
               {
                 "grant_type" => @@grant_type,
-                "client_id" => @@userAssignedClientId,
+                "client_id" => (@@userAssignedClientId.nil?)? "" : @@userAssignedClientId,
                 "resource" => @@token_resource_url,
               }
             )

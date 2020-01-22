@@ -25,7 +25,6 @@ module Fluent
       # msiEndpoint is the well known endpoint for getting MSI authentications tokens
       @@msi_endpoint_template = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&client_id=%{user_assigned_client_id}&resource=%{resource}"
       @@userAssignedClientId = ENV["USER_ASSIGNED_IDENTITY_CLIENT_ID"]
-      # @@userAssignedClientId = "8bc13436-46d6-4a1c-b75e-92d676001d23"
 
       @@plugin_name = "AKSCustomMetricsMDM"
 
@@ -74,61 +73,32 @@ module Fluent
         if @can_send_data_to_mdm
           @log.info "MDM Metrics supported in #{aks_region} region"
 
-          # Check to see if SP exists, if it does use SP. Else, use msi
-          sp_client_id = @data_hash["aadClientId"]
-          sp_client_secret = @data_hash["aadClientSecret"]
-
-          #Uncomment this if you want to check sp first
-          if (!sp_client_id.nil? && !sp_client_id.empty?)
-            @useMsi = false
-            aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
-            @parsed_token_uri = URI.parse(aad_token_url)
-            @cached_access_token = get_access_token
-          else
-            # if !@@userAssignedClientId.nil? && !@@userAssignedClientId.empty?
-            @useMsi = true
-            msi_endpoint = @@msi_endpoint_template % {user_assigned_client_id: @@userAssignedClientId, resource: @@token_resource_url}
-            @parsed_token_uri = URI.parse(msi_endpoint)
-            @cached_access_token = get_access_token
-            # else
-            #   @can_send_data_to_mdm = false
-            #   @log.info "User assigned client id is nil or empty, cannot post data to MDM using MSI"
-            # end
-          end
-
-          @cached_access_token = get_access_token
-
-          # Check to see if "useManagedIdentityExtension" is set to true
-          # useManagedIdentityExtension = @data_hash["useManagedIdentityExtension"]
-          # if (!useManagedIdentityExtension.nil? && useManagedIdentityExtension == true)
-          #   if !@@userAssignedClientId.nil? && !@@userAssignedClientId.empty?
-          #     @useMsi = true
-          #     msi_endpoint = @@msi_endpoint_template % {user_assigned_client_id: @@userAssignedClientId, resource: @@token_resource_url}
-          #     @parsed_token_uri = URI.parse(msi_endpoint)
-          #     @cached_access_token = get_access_token
-          #   else
-          #     @can_send_data_to_mdm = false
-          #     @log.info "User assigned client id is nil or empty, cannot post data to MDM using MSI"
-          #   end
-          # else
-          #   @useMsi = false
-          #   aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
-          #   @parsed_token_uri = URI.parse(aad_token_url)
-          #   @cached_access_token = get_access_token
-          # end
-
           @@post_request_url = @@post_request_url_template % {aks_region: aks_region, aks_resource_id: aks_resource_id}
           @post_request_uri = URI.parse(@@post_request_url)
           @http_client = Net::HTTP.new(@post_request_uri.host, @post_request_uri.port)
           @http_client.use_ssl = true
           @log.info "POST Request url: #{@@post_request_url}"
           ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMPluginStart", {})
+
+          # Check to see if SP exists, if it does use SP. Else, use msi
+          sp_client_id = @data_hash["aadClientId"]
+          sp_client_secret = @data_hash["aadClientSecret"]
+
+          if (!sp_client_id.nil? && !sp_client_id.empty?)
+            @useMsi = false
+            aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
+            @parsed_token_uri = URI.parse(aad_token_url)
+          else
+            @useMsi = true
+            msi_endpoint = @@msi_endpoint_template % {user_assigned_client_id: @@userAssignedClientId, resource: @@token_resource_url}
+            @parsed_token_uri = URI.parse(msi_endpoint)
+          end
+
+          @cached_access_token = get_access_token
         end
       rescue => e
         @log.info "exception when initializing out_mdm #{e}"
         ApplicationInsightsUtility.sendExceptionTelemetry(e, {"FeatureArea" => "MDM"})
-        # @can_send_data_to_mdm = false
-        @get_access_token_backoff_expiry = Time.now + 59 * 60
         return
       end
     end
@@ -142,7 +112,6 @@ module Fluent
           if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # token is valid for 60 minutes. Refresh token 5 minutes from expiration
             @log.info "Refreshing access token for out_mdm plugin.."
 
-            # http_access_token = Net::HTTP.new(@parsed_token_uri.host, @parsed_token_uri.port)
             if (!!@useMsi)
               @log.info "Using msi to get the token to post MDM data"
               ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-MSI", {})
@@ -174,6 +143,7 @@ module Fluent
             parsed_json = JSON.parse(token_response.body)
             @token_expiry_time = Time.now + 59 * 60 # set the expiry time to be ~one hour from current time
             @cached_access_token = parsed_json["access_token"]
+          @log.info "Successfully got access token"
           end
           @cached_access_token
         rescue => err
@@ -184,7 +154,9 @@ module Fluent
             sleep(retries)
             retry
           else
-            raise
+          @get_access_token_backoff_expiry = Time.now + 59 * 60
+          @log.info "@get_access_token_backoff_expiry set to #{@get_access_token_backoff_expiry}"
+          ApplicationInsightsUtility.sendExceptionTelemetry(err, {"FeatureArea" => "MDM"})
           end
         ensure
           if http_access_token

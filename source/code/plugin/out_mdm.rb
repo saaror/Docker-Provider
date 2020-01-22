@@ -42,6 +42,8 @@ module Fluent
       @last_telemetry_sent_time = nil
       # Setting useMsi to false by default
       @useMsi = false
+
+      @get_access_token_backoff_expiry = Time.now
     end
 
     def configure(conf)
@@ -84,10 +86,10 @@ module Fluent
             @cached_access_token = get_access_token
           else
             # if !@@userAssignedClientId.nil? && !@@userAssignedClientId.empty?
-              @useMsi = true
-              msi_endpoint = @@msi_endpoint_template % {user_assigned_client_id: @@userAssignedClientId, resource: @@token_resource_url}
-              @parsed_token_uri = URI.parse(msi_endpoint)
-              @cached_access_token = get_access_token
+            @useMsi = true
+            msi_endpoint = @@msi_endpoint_template % {user_assigned_client_id: @@userAssignedClientId, resource: @@token_resource_url}
+            @parsed_token_uri = URI.parse(msi_endpoint)
+            @cached_access_token = get_access_token
             # else
             #   @can_send_data_to_mdm = false
             #   @log.info "User assigned client id is nil or empty, cannot post data to MDM using MSI"
@@ -125,50 +127,71 @@ module Fluent
       rescue => e
         @log.info "exception when initializing out_mdm #{e}"
         ApplicationInsightsUtility.sendExceptionTelemetry(e, {"FeatureArea" => "MDM"})
-        @can_send_data_to_mdm = false
+        # @can_send_data_to_mdm = false
+        @get_access_token_backoff_expiry = Time.now + 59 * 60
         return
       end
     end
 
-    # get the access token only if the time to expiry is less than 5 minutes
+    # get the access token only if the time to expiry is less than 5 minutes and get_access_token_backoff has expired
     def get_access_token
-      begin
-        if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # token is valid for 60 minutes. Refresh token 5 minutes from expiration
-          @log.info "Refreshing access token for out_mdm plugin.."
+      if (Time.now > @get_access_token_backoff_expiry)
+        http_access_token = nil
+        retries = 0
+        begin
+          if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # token is valid for 60 minutes. Refresh token 5 minutes from expiration
+            @log.info "Refreshing access token for out_mdm plugin.."
 
-          http_access_token = Net::HTTP.new(@parsed_token_uri.host, @parsed_token_uri.port)
+            # http_access_token = Net::HTTP.new(@parsed_token_uri.host, @parsed_token_uri.port)
+            if (!!@useMsi)
+              @log.info "Using msi to get the token to post MDM data"
+              ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-MSI", {})
+              @log.info "Opening TCP connection"
+              http_access_token = Net::HTTP.start(@parsed_token_uri.host, @parsed_token_uri.port, :use_ssl => false)
+              # http_access_token.use_ssl = false
+              token_request = Net::HTTP::Get.new(@parsed_token_uri.request_uri)
+              token_request["Metadata"] = true
+            else
+              @log.info "Using SP to get the token to post MDM data"
+              ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-SP", {})
+              @log.info "Opening TCP connection"
+              http_access_token = Net::HTTP.start(@parsed_token_uri.host, @parsed_token_uri.port, :use_ssl => true)
+              # http_access_token.use_ssl = true
+              token_request = Net::HTTP::Post.new(@parsed_token_uri.request_uri)
+              token_request.set_form_data(
+                {
+                  "grant_type" => @@grant_type,
+                  "client_id" => @data_hash["aadClientId"],
+                  "client_secret" => @data_hash["aadClientSecret"],
+                  "resource" => @@token_resource_url,
+                }
+              )
+            end
 
-          if (!!@useMsi)
-            @log.info "Using msi to get the token to post MDM data"
-            ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-MSI", {})
-            http_access_token.use_ssl = false
-            token_request = Net::HTTP::Get.new(@parsed_token_uri.request_uri)
-            token_request["Metadata"] = true
-          else
-            @log.info "Using SP to get the token to post MDM data"
-            ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-SP", {})
-            http_access_token.use_ssl = true
-            token_request = Net::HTTP::Post.new(@parsed_token_uri.request_uri)
-            token_request.set_form_data(
-              {
-                "grant_type" => @@grant_type,
-                "client_id" => @data_hash["aadClientId"],
-                "client_secret" => @data_hash["aadClientSecret"],
-                "resource" => @@token_resource_url,
-              }
-            )
+            @log.info "making request to get token.."
+            token_response = http_access_token.request(token_request)
+            # Handle the case where the response is not 200
+            parsed_json = JSON.parse(token_response.body)
+            @token_expiry_time = Time.now + 59 * 60 # set the expiry time to be ~one hour from current time
+            @cached_access_token = parsed_json["access_token"]
           end
-
-          @log.info "making request to get token.."
-          token_response = http_access_token.request(token_request)
-          # Handle the case where the response is not 200
-          parsed_json = JSON.parse(token_response.body)
-          @token_expiry_time = Time.now + 59 * 60 # set the expiry time to be ~one hour from current time
-          @cached_access_token = parsed_json["access_token"]
+          @cached_access_token
+        rescue => err
+          @log.info "Exception in get_access_token: #{err}"
+          if (retries < 2)
+            retries += 1
+            @log.info "Retrying request to get token - retry number: #{retries}"
+            sleep(retries)
+            retry
+          else
+            raise
+          end
+        ensure
+          if http_access_token
+            @log.info "Closing http connection"
+            http_access_token.finish
+          end
         end
-        @cached_access_token
-      rescue => err
-        @log.info "Exception in get_access_token: #{err}"
       end
     end
 

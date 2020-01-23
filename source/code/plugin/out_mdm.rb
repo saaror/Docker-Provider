@@ -145,7 +145,6 @@ module Fluent
             @cached_access_token = parsed_json["access_token"]
           @log.info "Successfully got access token"
           end
-          @cached_access_token
         rescue => err
           @log.info "Exception in get_access_token: #{err}"
           if (retries < 2)
@@ -165,6 +164,7 @@ module Fluent
           end
         end
       end
+      @cached_access_token
     end
 
     def write_status_file(success, message)

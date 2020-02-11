@@ -84,7 +84,7 @@ module Fluent
           sp_client_id = @data_hash["aadClientId"]
           sp_client_secret = @data_hash["aadClientSecret"]
 
-          if (!sp_client_id.nil? && !sp_client_id.empty?)
+          if (!sp_client_id.nil? && !sp_client_id.empty? && sp_client_id != "msi")
             @useMsi = false
             aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
             @parsed_token_uri = URI.parse(aad_token_url)
@@ -109,7 +109,7 @@ module Fluent
         http_access_token = nil
         retries = 0
         begin
-          if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # token is valid for 60 minutes. Refresh token 5 minutes from expiration
+          if @cached_access_token.to_s.empty? || (Time.now + 5 * 60 > @token_expiry_time) # Refresh token 5 minutes from expiration
             @log.info "Refreshing access token for out_mdm plugin.."
 
             if (!!@useMsi)
@@ -141,7 +141,7 @@ module Fluent
             token_response = http_access_token.request(token_request)
             # Handle the case where the response is not 200
             parsed_json = JSON.parse(token_response.body)
-            @token_expiry_time = Time.now + 59 * 60 # set the expiry time to be ~one hour from current time
+            @token_expiry_time = Time.now + 29 * 60 # set the expiry time to be ~thirty minutes from current time
             @cached_access_token = parsed_json["access_token"]
           @log.info "Successfully got access token"
           end
@@ -153,7 +153,7 @@ module Fluent
             sleep(retries)
             retry
           else
-          @get_access_token_backoff_expiry = Time.now + 59 * 60
+          @get_access_token_backoff_expiry = Time.now + 29 * 60
           @log.info "@get_access_token_backoff_expiry set to #{@get_access_token_backoff_expiry}"
           ApplicationInsightsUtility.sendExceptionTelemetry(err, {"FeatureArea" => "MDM"})
           end

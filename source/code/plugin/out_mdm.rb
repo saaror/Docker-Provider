@@ -30,8 +30,6 @@ module Fluent
       @@record_batch_size = 2600
 
       @data_hash = {}
-      #@aad_token_url = nil
-      #@token_url = nil
       @parsed_token_uri = nil
       @http_client = nil
       @token_expiry_time = Time.now

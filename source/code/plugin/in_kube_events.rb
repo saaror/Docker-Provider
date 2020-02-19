@@ -22,6 +22,9 @@ module Fluent
 
       # Initializing events count for telemetry
       @eventsCount = 0
+
+      # Initilize enable/disable normal event collection
+      @collectAllKubeEvents = false
     end
 
     config_param :run_interval, :time, :default => 60
@@ -37,6 +40,16 @@ module Fluent
         @condition = ConditionVariable.new
         @mutex = Mutex.new
         @thread = Thread.new(&method(:run_periodic))
+        collectAllKubeEventsSetting = ENV["AZMON_CLUSTER_COLLECT_ALL_KUBE_EVENTS"]
+        if !collectAllKubeEventsSetting.nil? && !collectAllKubeEventsSetting.empty?
+          if collectAllKubeEventsSetting.casecmp("false") == 0
+            @collectAllKubeEvents = false
+            $log.warn("Normal kube events collection disabled for cluster")
+          else
+            @collectAllKubeEvents = true
+            $log.warn("Normal kube events collection enabled for cluster")
+          end
+        end
       end
     end
 
@@ -62,7 +75,11 @@ module Fluent
         # Initializing continuation token to nil
         continuationToken = nil
         $log.info("in_kube_events::enumerate : Getting events from Kube API @ #{Time.now.utc.iso8601}")
-        continuationToken, eventList = KubernetesApiClient.getResourcesAndContinuationToken("events?fieldSelector=type!=Normal&limit=#{@EVENTS_CHUNK_SIZE}")
+        if @collectAllKubeEvents
+          continuationToken, eventList = KubernetesApiClient.getResourcesAndContinuationToken("events?limit=#{@EVENTS_CHUNK_SIZE}")
+        else
+          continuationToken, eventList = KubernetesApiClient.getResourcesAndContinuationToken("events?fieldSelector=type!=Normal&limit=#{@EVENTS_CHUNK_SIZE}")
+        end
         $log.info("in_kube_events::enumerate : Done getting events from Kube API @ #{Time.now.utc.iso8601}")
         if (!eventList.nil? && !eventList.empty? && eventList.key?("items") && !eventList["items"].nil? && !eventList["items"].empty?)
           newEventQueryState = parse_and_emit_records(eventList, eventQueryState, newEventQueryState, batchTime)
@@ -87,9 +104,9 @@ module Fluent
         # Flush AppInsights telemetry once all the processing is done, only if the number of events flushed is greater than 0
         if (@eventsCount > 0)
           telemetryProperties = {}
+          telemetryProperties["CollectAllKubeEvents"] = @collectAllKubeEvents
           ApplicationInsightsUtility.sendMetricTelemetry("EventCount", @eventsCount, {})
         end
-
       rescue => errorStr
         $log.warn "in_kube_events::enumerate:Failed in enumerate: #{errorStr}"
         $log.debug_backtrace(errorStr.backtrace)

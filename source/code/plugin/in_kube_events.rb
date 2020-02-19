@@ -4,7 +4,6 @@
 module Fluent
   class Kube_Event_Input < Input
     Plugin.register_input("kubeevents", self)
-
     @@KubeEventsStateFile = "/var/opt/microsoft/docker-cimprov/state/KubeEventQueryState.yaml"
 
     def initialize
@@ -20,6 +19,9 @@ module Fluent
 
       # 30000 events account to approximately 5MB
       @EVENTS_CHUNK_SIZE = 30000
+
+      # Initializing events count for telemetry
+      @eventsCount = 0
     end
 
     config_param :run_interval, :time, :default => 60
@@ -55,6 +57,7 @@ module Fluent
         batchTime = currentTime.utc.iso8601
         eventQueryState = getEventQueryState
         newEventQueryState = []
+        @eventsCount = 0
 
         # Initializing continuation token to nil
         continuationToken = nil
@@ -80,6 +83,13 @@ module Fluent
         # Setting this to nil so that we dont hold memory until GC kicks in
         eventList = nil
         writeEventQueryState(newEventQueryState)
+
+        # Flush AppInsights telemetry once all the processing is done, only if the number of events flushed is greater than 0
+        if (@eventsCount > 0)
+          telemetryProperties = {}
+          ApplicationInsightsUtility.sendMetricTelemetry("EventCount", @eventsCount, {})
+        end
+
       rescue => errorStr
         $log.warn "in_kube_events::enumerate:Failed in enumerate: #{errorStr}"
         $log.debug_backtrace(errorStr.backtrace)
@@ -105,7 +115,7 @@ module Fluent
           nodeName = items["source"].key?("host") ? items["source"]["host"] : (OMS::Common.get_hostname)
           # For ARO v3 cluster, drop the master and infra node sourced events to ingest
           if KubernetesApiClient.isAROV3Cluster && !nodeName.nil? && !nodeName.empty? &&
-             ( nodeName.downcase.start_with?("infra-") || nodeName.downcase.start_with?("master-") )
+             (nodeName.downcase.start_with?("infra-") || nodeName.downcase.start_with?("master-"))
             next
           end
 
@@ -129,6 +139,7 @@ module Fluent
             "DataItems" => [record.each { |k, v| record[k] = v }],
           }
           eventStream.add(emitTime, wrapper) if wrapper
+          @eventsCount += 1
         end
         router.emit_stream(@tag, eventStream) if eventStream
       rescue => errorStr

@@ -29,6 +29,8 @@ module Fluent
       @@plugin_name = "AKSCustomMetricsMDM"
       @@record_batch_size = 2600
 
+      @@tokenRefreshBackoffInterval = 30
+
       @data_hash = {}
       @parsed_token_uri = nil
       @http_client = nil
@@ -140,7 +142,7 @@ module Fluent
             token_response = http_access_token.request(token_request)
             # Handle the case where the response is not 200
             parsed_json = JSON.parse(token_response.body)
-            @token_expiry_time = Time.now + 29 * 60 # set the expiry time to be ~thirty minutes from current time
+            @token_expiry_time = Time.now + @@tokenRefreshBackoffInterval * 60 # set the expiry time to be ~thirty minutes from current time
             @cached_access_token = parsed_json["access_token"]
           @log.info "Successfully got access token"
           end
@@ -152,7 +154,7 @@ module Fluent
             sleep(retries)
             retry
           else
-          @get_access_token_backoff_expiry = Time.now + 29 * 60
+          @get_access_token_backoff_expiry = Time.now + @@tokenRefreshBackoffInterval * 60
           @log.info "@get_access_token_backoff_expiry set to #{@get_access_token_backoff_expiry}"
           ApplicationInsightsUtility.sendExceptionTelemetry(err, {"FeatureArea" => "MDM"})
           end

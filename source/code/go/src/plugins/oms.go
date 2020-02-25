@@ -734,7 +734,9 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		stringMap := make(map[string]string)
 
+		Log("Before sprintf: %s", ToString(record["log"]))
 		stringMap["LogEntry"] = fmt.Sprintf("%s", ToString(record["log"]))
+		Log("After sprintf: %s", stringMap["LogEntry"])
 		stringMap["LogEntrySource"] = logEntrySource
 		stringMap["LogEntryTimeStamp"] = ToString(record["time"])
 		stringMap["SourceSystem"] = "Containers"

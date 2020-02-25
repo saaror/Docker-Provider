@@ -734,7 +734,7 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		stringMap := make(map[string]string)
 
-		stringMap["LogEntry"] = ToString(record["log"])
+		stringMap["LogEntry"] = fmt.Sprintf("%s", ToString(record["log"]))
 		stringMap["LogEntrySource"] = logEntrySource
 		stringMap["LogEntryTimeStamp"] = ToString(record["time"])
 		stringMap["SourceSystem"] = "Containers"
@@ -910,13 +910,13 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 	skipKubeMonEventsFlush = true
 
 	enrichContainerLogsSetting := os.Getenv("AZMON_CLUSTER_CONTAINER_LOG_ENRICH")
-		if (strings.Compare(enrichContainerLogsSetting, "true") == 0) {
-			enrichContainerLogs = true
-			Log("ContainerLogEnrichment=true \n")
-		} else {
-			enrichContainerLogs = false
-			Log("ContainerLogEnrichment=false \n")
-		}
+	if strings.Compare(enrichContainerLogsSetting, "true") == 0 {
+		enrichContainerLogs = true
+		Log("ContainerLogEnrichment=true \n")
+	} else {
+		enrichContainerLogs = false
+		Log("ContainerLogEnrichment=false \n")
+	}
 
 	pluginConfig, err := ReadConfiguration(pluginConfPath)
 	if err != nil {

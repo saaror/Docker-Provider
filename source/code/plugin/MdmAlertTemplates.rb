@@ -1,5 +1,5 @@
 class MdmAlertTemplates
-    oom_killed_container_count_custom_metrics_template = '
+    Oom_killed_container_count_custom_metrics_template = '
     {
         "time": "%{timestamp}",
         "data": {
@@ -25,14 +25,4 @@ class MdmAlertTemplates
             }
         }
     }'
-
-
-
-
-
-
-
-
-
-
 end

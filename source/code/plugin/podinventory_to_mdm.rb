@@ -129,7 +129,7 @@ class Inventory2MdmConvertor
       }
 
       #Add oom killed container count records
-      records = MdmMetricsGenerator.appendPodMetrics(records)
+      records = MdmMetricsGenerator.appendPodMetrics(records, batch_time)
     rescue Exception => e
       @log.info "Error processing pod inventory record Exception: #{e.class} Message: #{e.message}"
       ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
@@ -151,7 +151,7 @@ class Inventory2MdmConvertor
       if !record["DataItems"][0]["ContainerLastStatus"].nil? && !record["DataItems"][0]["ContainerLastStatus"].empty?
         if !record["DataItems"][0]["ContainerLastStatus"]["reason"].nil? &&
            !record["DataItems"][0]["ContainerLastStatus"]["reason"].empty? &&
-           !record["DataItems"][0]["ContainerLastStatus"]["reason"].downcase == @@oom_killed
+           record["DataItems"][0]["ContainerLastStatus"]["reason"].downcase == @@oom_killed
           MdmMetricsGenerator.generatePodMetrics(@@oom_killed_container_count_metric_name,
                                                  podControllerNameDimValue,
                                                  podNamespaceDimValue)

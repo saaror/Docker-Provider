@@ -127,6 +127,9 @@ class Inventory2MdmConvertor
         }
         records.push(JSON.parse(record))
       }
+
+      #Add oom killed container count records
+      records = MdmMetricsGenerator.appendPodMetrics(records)
     rescue Exception => e
       @log.info "Error processing pod inventory record Exception: #{e.class} Message: #{e.message}"
       ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)

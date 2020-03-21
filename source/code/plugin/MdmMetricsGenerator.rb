@@ -10,7 +10,7 @@ class MdmMetricsGenerator
   @log_path = "/var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log"
   @log = Logger.new(@log_path, 1, 5000000)
 
-  @@oom_killed_container_count_metric_name = "oomKilledContainerCount"
+  @@oom_killed_container_count_metric_name = "OomKilledContainerCount"
   @oom_killed_container_count_hash = {}
 
   def initialize
@@ -20,6 +20,7 @@ class MdmMetricsGenerator
     def appendPodMetrics(records, batch_time)
       begin
         @log.info "in appendPodMetrics..."
+        @log.info "oom killed container count: #{@oom_killed_container_count_hash.length}"
         if !@oom_killed_container_count_hash.empty?
           @oom_killed_container_count_hash.each { |key, value|
             key_elements = key.split("~~")

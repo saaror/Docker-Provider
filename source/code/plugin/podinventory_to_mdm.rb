@@ -145,15 +145,21 @@ class Inventory2MdmConvertor
   end
 
   def process_record_for_oom_killed_metric(record, podControllerNameDimValue, podNamespaceDimValue)
-    # Generate metric if 'reason' for lastState is 'OOMKilled'
-    if !record["DataItems"][0]["ContainerLastStatus"].nil? && !record["DataItems"][0]["ContainerLastStatus"].empty?
-      if !record["DataItems"][0]["ContainerLastStatus"]["reason"].nil? &&
-         !record["DataItems"][0]["ContainerLastStatus"]["reason"].empty? &&
-         !record["DataItems"][0]["ContainerLastStatus"]["reason"].downcase == @@oom_killed
-        MdmMetricsGenerator.generatePodMetrics(@@oom_killed_container_count_metric_name,
-                                               podControllerNameDimValue,
-                                               podNamespaceDimValue)
+    begin
+      @log.info "in process_record_for_oom_killed_metric..."
+      # Generate metric if 'reason' for lastState is 'OOMKilled'
+      if !record["DataItems"][0]["ContainerLastStatus"].nil? && !record["DataItems"][0]["ContainerLastStatus"].empty?
+        if !record["DataItems"][0]["ContainerLastStatus"]["reason"].nil? &&
+           !record["DataItems"][0]["ContainerLastStatus"]["reason"].empty? &&
+           !record["DataItems"][0]["ContainerLastStatus"]["reason"].downcase == @@oom_killed
+          MdmMetricsGenerator.generatePodMetrics(@@oom_killed_container_count_metric_name,
+                                                 podControllerNameDimValue,
+                                                 podNamespaceDimValue)
+        end
       end
+    rescue => errorStr
+      @log.warn("Exception in process_record_for_oom_killed_metric: #{errorStr}")
+      ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
     end
   end
 
@@ -197,10 +203,9 @@ class Inventory2MdmConvertor
         else
           @no_phase_dim_values_hash[key_without_phase_dim_value] = true
         end
-        
+
         #Generate OOM killed mdm metric
         process_record_for_oom_killed_metric(record, podControllerNameDimValue, podNamespaceDimValue)
-
       rescue Exception => e
         @log.info "Error processing pod inventory record Exception: #{e.class} Message: #{e.message}"
         ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)

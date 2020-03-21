@@ -246,6 +246,10 @@ touch /var/opt/microsoft/docker-cimprov/log/filter_inventory2mdm.log
 chmod 666 /var/opt/microsoft/docker-cimprov/log/filter_inventory2mdm.log
 chown omsagent:omiusers /var/opt/microsoft/docker-cimprov/log/filter_inventory2mdm.log
 
+touch /var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log
+chmod 666 /var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log
+chown omsagent:omiusers /var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log
+
 touch /var/opt/microsoft/docker-cimprov/log/health_monitors.log
 chmod 666 /var/opt/microsoft/docker-cimprov/log/health_monitors.log
 chown omsagent:omiusers /var/opt/microsoft/docker-cimprov/log/health_monitors.log

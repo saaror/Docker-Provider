@@ -7,11 +7,12 @@ class MdmMetricsGenerator
   require_relative "MdmAlertTemplates"
   require_relative "ApplicationInsightsUtility"
 
+  @log_path = "/var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log"
+  @log = Logger.new(@log_path, 1, 5000000)
+
   @@oom_killed_container_count_metric_name = "oomKilledContainerCount"
 
   def initialize
-    @log_path = "/var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log"
-    @log = Logger.new(@log_path, 1, 5000000)
     @oom_killed_container_count_hash = {}
   end
 

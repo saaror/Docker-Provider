@@ -78,7 +78,7 @@ class Inventory2MdmConvertor
   @process_incoming_stream = false
 
   def initialize(custom_metrics_azure_regions)
-    @log_path = "/var/opt/microsoft/docker-cimprov/log/filter_inventory2mdm.log"
+    @log_path = "/var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log"
     @log = Logger.new(@log_path, 1, 5000000)
     @pod_count_hash = {}
     @no_phase_dim_values_hash = {}
@@ -86,7 +86,7 @@ class Inventory2MdmConvertor
     @pod_uids = {}
     @process_incoming_stream = CustomMetricsUtils.check_custom_metrics_availability(custom_metrics_azure_regions)
     @log.debug "After check_custom_metrics_availability process_incoming_stream #{@process_incoming_stream}"
-    @log.debug { "Starting filter_inventory2mdm plugin" }
+    @log.debug { "Starting podinventory_to_mdm plugin" }
   end
 
   def get_pod_inventory_mdm_records(batch_time)

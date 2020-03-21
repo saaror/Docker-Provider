@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 class MdmMetricsGenerator
+  require "logger"
   require "json"
   require_relative "MdmAlertTemplates"
   require_relative "ApplicationInsightsUtility"

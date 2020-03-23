@@ -1,5 +1,5 @@
 class MdmAlertTemplates
-    Oom_killed_container_count_custom_metrics_template = '
+    Pod_Metrics_custom_metrics_template = '
     {
         "time": "%{timestamp}",
         "data": {

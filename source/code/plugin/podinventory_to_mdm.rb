@@ -7,11 +7,13 @@ require "yajl/json_gem"
 require_relative "oms_common"
 require_relative "CustomMetricsUtils"
 require_relative "MdmMetricsGenerator"
+require_relative "mdmMetrics"
 
 class Inventory2MdmConvertor
   @@node_count_metric_name = "nodesCount"
   @@pod_count_metric_name = "podCount"
-  @@oom_killed_container_count_metric_name = "oomKilledContainerCount"
+#   @@oom_killed_container_count_metric_name = "OomKilledContainerCount"
+#   @container_restart_count_metric_name = "ContainerRestartCount"
   @@pod_inventory_tag = "mdm.kubepodinventory"
   @@node_inventory_tag = "mdm.kubenodeinventory"
   @@node_status_ready = "Ready"
@@ -128,8 +130,8 @@ class Inventory2MdmConvertor
         records.push(JSON.parse(record))
       }
 
-      #Add oom killed container count records
-      records = MdmMetricsGenerator.appendPodMetrics(records, batch_time)
+      #Add pod metric records
+      records = MdmMetricsGenerator.appendAllPodMetrics(records, batch_time)
     rescue Exception => e
       @log.info "Error processing pod inventory record Exception: #{e.class} Message: #{e.message}"
       ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
@@ -152,7 +154,7 @@ class Inventory2MdmConvertor
         if !record["DataItems"][0]["ContainerLastStatus"]["reason"].nil? &&
            !record["DataItems"][0]["ContainerLastStatus"]["reason"].empty? &&
            record["DataItems"][0]["ContainerLastStatus"]["reason"].downcase == @@oom_killed
-          MdmMetricsGenerator.generatePodMetrics(@@oom_killed_container_count_metric_name,
+          MdmMetricsGenerator.generatePodMetrics(MdmMetrics::OOM_KILLED_CONTAINER_COUNT,
                                                  podControllerNameDimValue,
                                                  podNamespaceDimValue)
         end
@@ -161,6 +163,13 @@ class Inventory2MdmConvertor
       @log.warn("Exception in process_record_for_oom_killed_metric: #{errorStr}")
       ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
     end
+  end
+
+  def process_record_for_container_restarts(record, podControllerNameDimValue, podNamespaceDimValue)
+    MdmMetricsGenerator.generatePodMetrics(MdmMetrics::CONTAINER_RESTART_COUNT,
+        podControllerNameDimValue,
+        podNamespaceDimValue,
+        record["DataItems"][0]["PodRestartCount"])
   end
 
   def process_pod_inventory_record(record)
@@ -206,6 +215,10 @@ class Inventory2MdmConvertor
 
         #Generate OOM killed mdm metric
         process_record_for_oom_killed_metric(record, podControllerNameDimValue, podNamespaceDimValue)
+        #Generate Container restarts mdm metric
+        if (record["PodRestartCount"] > 0)
+          process_record_for_container_restarts_metric(record, podControllerNameDimValue, podNamespaceDimValue)
+        end
       rescue Exception => e
         @log.info "Error processing pod inventory record Exception: #{e.class} Message: #{e.message}"
         ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)

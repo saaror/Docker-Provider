@@ -73,7 +73,7 @@ class MdmMetricsGenerator
     def appendPodMetrics(records, metricName, metricHash, batch_time)
       begin
         @log.info "in appendPodMetrics..."
-        if !metricHashempty?
+        if !metricHash.empty?
           metricHash.each { |key, value|
             key_elements = key.split("~~")
             if key_elements.length != 2

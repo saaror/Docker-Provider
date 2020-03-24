@@ -167,6 +167,7 @@ class Inventory2MdmConvertor
   end
 
   def process_record_for_container_restarts_metric(restartCount, podControllerNameDimValue, podNamespaceDimValue)
+    @log.info "in process_record_for_container_restarts_metric..."
     # Invoke the metric generation method only when restart count is greater than 0
     if (!restartCount.nil? && (restartCount.is_a? Integer) && restartCount > 0)
       MdmMetricsGenerator.generatePodMetrics(MdmMetrics::CONTAINER_RESTART_COUNT,

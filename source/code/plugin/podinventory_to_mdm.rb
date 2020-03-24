@@ -12,8 +12,8 @@ require_relative "mdmMetrics"
 class Inventory2MdmConvertor
   @@node_count_metric_name = "nodesCount"
   @@pod_count_metric_name = "podCount"
-#   @@oom_killed_container_count_metric_name = "OomKilledContainerCount"
-#   @container_restart_count_metric_name = "ContainerRestartCount"
+  #   @@oom_killed_container_count_metric_name = "OomKilledContainerCount"
+  #   @container_restart_count_metric_name = "ContainerRestartCount"
   @@pod_inventory_tag = "mdm.kubepodinventory"
   @@node_inventory_tag = "mdm.kubenodeinventory"
   @@node_status_ready = "Ready"
@@ -146,14 +146,15 @@ class Inventory2MdmConvertor
     return records
   end
 
-  def process_record_for_oom_killed_metric(record, podControllerNameDimValue, podNamespaceDimValue)
+  def process_record_for_oom_killed_metric(containerLastStatus, podControllerNameDimValue, podNamespaceDimValue)
     begin
       @log.info "in process_record_for_oom_killed_metric..."
       # Generate metric if 'reason' for lastState is 'OOMKilled'
-      if !record["DataItems"][0]["ContainerLastStatus"].nil? && !record["DataItems"][0]["ContainerLastStatus"].empty?
-        if !record["DataItems"][0]["ContainerLastStatus"]["reason"].nil? &&
-           !record["DataItems"][0]["ContainerLastStatus"]["reason"].empty? &&
-           record["DataItems"][0]["ContainerLastStatus"]["reason"].downcase == @@oom_killed
+      if !containerLastStatus.nil? && !containerLastStatus.empty?
+        reason = containerLastStatus["reason"]
+        if !reason.nil? &&
+           !reason.empty? &&
+           reason.downcase == @@oom_killed
           MdmMetricsGenerator.generatePodMetrics(MdmMetrics::OOM_KILLED_CONTAINER_COUNT,
                                                  podControllerNameDimValue,
                                                  podNamespaceDimValue)
@@ -165,11 +166,14 @@ class Inventory2MdmConvertor
     end
   end
 
-  def process_record_for_container_restarts(record, podControllerNameDimValue, podNamespaceDimValue)
-    MdmMetricsGenerator.generatePodMetrics(MdmMetrics::CONTAINER_RESTART_COUNT,
-        podControllerNameDimValue,
-        podNamespaceDimValue,
-        record["DataItems"][0]["PodRestartCount"])
+  def process_record_for_container_restarts_metric(restartCount, podControllerNameDimValue, podNamespaceDimValue)
+    # Invoke the metric generation method only when restart count is greater than 0
+    if (!restartCount.nil? && restartCount.is_a? Integer && restartCount > 0)
+      MdmMetricsGenerator.generatePodMetrics(MdmMetrics::CONTAINER_RESTART_COUNT,
+                                             podControllerNameDimValue,
+                                             podNamespaceDimValue,
+                                             restartCount)
+    end
   end
 
   def process_pod_inventory_record(record)
@@ -214,11 +218,9 @@ class Inventory2MdmConvertor
         end
 
         #Generate OOM killed mdm metric
-        process_record_for_oom_killed_metric(record, podControllerNameDimValue, podNamespaceDimValue)
+        process_record_for_oom_killed_metric(record["DataItems"][0]["ContainerLastStatus"], podControllerNameDimValue, podNamespaceDimValue)
         #Generate Container restarts mdm metric
-        if (record["PodRestartCount"] > 0)
-          process_record_for_container_restarts_metric(record, podControllerNameDimValue, podNamespaceDimValue)
-        end
+        process_record_for_container_restarts_metric(record["DataItems"][0]["ContainerRestartCount"], podControllerNameDimValue, podNamespaceDimValue)
       rescue Exception => e
         @log.info "Error processing pod inventory record Exception: #{e.class} Message: #{e.message}"
         ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)

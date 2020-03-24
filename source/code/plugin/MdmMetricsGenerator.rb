@@ -114,9 +114,7 @@ class MdmMetricsGenerator
           @oom_killed_container_count_hash[dim_key] = @oom_killed_container_count_hash.key?(dim_key) ? @oom_killed_container_count_hash[dim_key] + 1 : 1
         elsif metricName == MdmMetrics::CONTAINER_RESTART_COUNT
           @log.info "adding dimension key to container restart count hash..."
-          if !@container_restart_count_hash.key?(dim_key) ?
-          @container_restart_count_hash[dim_key] = metricValue
-          end
+          @container_restart_count_hash[dim_key] = @container_restart_count_hash.key?(dim_key) ? @container_restart_count_hash[dim_key] + metricValue  : metricValue
         end
       rescue => errorStr
         @log.warn "Error in generatePodMetrics: #{errorStr}"

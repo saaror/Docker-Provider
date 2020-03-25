@@ -320,6 +320,9 @@ module Fluent
               end
             end
           end
+          #Invoke the helper method to compute ready/not ready mdm metric
+          @inventoryToMdmConvertor.process_record_for_pods_ready_metric(record["ControllerName"], record["Namespace"], items["status"]["conditions"])
+
           if podReadyCondition == false
             record["PodStatus"] = "Unknown"
           else

@@ -220,6 +220,31 @@ class Inventory2MdmConvertor
     end
   end
 
+  def process_record_for_pods_ready_metric(podControllerNameDimValue, podNamespaceDimValue, podStatusConditions)
+    begin
+      @log.info "in process_record_for_pods_ready_metric..."
+      if podControllerNameDimValue.nil? || podControllerNameDimValue.empty?
+        podControllerNameDimValue = "No Controller"
+      end
+      podReadyCondition = false
+      if !podStatusConditions.nil? && !podStatusConditions.empty?
+        podStatusConditions.each do |condition|
+          if condition["type"] == "Ready"
+            if condition["status"].downcase == "true"
+              podReadyCondition = true
+            end
+            break #Exit the for loop since we found the ready condition
+          end
+        end
+      end
+      MdmMetricsGenerator.generatePodReadyMetrics(podControllerNameDimValue,
+        podNamespaceDimValue, podReadyCondition)
+    rescue => errorStr
+      @log.warn("Exception in process_record_for_pods_ready_metric: #{errorStr}")
+      ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+    end
+  end
+
   def process_pod_inventory_record(record)
     if @process_incoming_stream
       begin

@@ -15,6 +15,8 @@ class MdmMetricsGenerator
   # @@container_restart_count_metric_name = "ContainerRestartCount"
   @oom_killed_container_count_hash = {}
   @container_restart_count_hash = {}
+  @pod_ready_hash = {}
+  @pod_not_ready_hash = {}
 
   def initialize
   end
@@ -55,16 +57,17 @@ class MdmMetricsGenerator
     #   @oom_killed_container_count_hash = {}
     #   return records
     # end
-    
+
     def appendAllPodMetrics(records, batch_time)
       begin
-      @log.info "in appendAllPodMetrics..."
-      @log.info "@oom_killed_container_count_hash: #{@oom_killed_container_count_hash}"
-      records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
-      @oom_killed_container_count_hash = {}
-      @log.info "@container_restart_count_hash: #{@container_restart_count_hash}"
-      records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
-      @container_restart_count_hash = {}
+        @log.info "in appendAllPodMetrics..."
+        @log.info "@oom_killed_container_count_hash: #{@oom_killed_container_count_hash}"
+        records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
+        @oom_killed_container_count_hash = {}
+        @log.info "@container_restart_count_hash: #{@container_restart_count_hash}"
+        records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
+        @container_restart_count_hash = {}
+        records = appendPodMetrics(records, Constants::MDM_POD_READY_PERCENTAGE, @pod_ready_hash, batch_time)
       rescue => errorStr
         @log.info "Error in appendAllPodMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
@@ -82,6 +85,9 @@ class MdmMetricsGenerator
               next
             end
 
+            if metricName == Constants::MDM_POD_READY_PERCENTAGE
+              value = getPodReadyPercentage(key, value)
+            end
             # get dimension values by key
             podControllerNameDimValue = key_elements[0]
             podNamespaceDimValue = key_elements[1]
@@ -106,28 +112,42 @@ class MdmMetricsGenerator
       return records
     end
 
-def generateOOMKilledPodMetrics(podControllerName, podNamespace)
-begin
-  dim_key = [podControllerName, podNamespace].join("~~")
-  @log.info "adding dimension key to oom killed container hash..."
-  @oom_killed_container_count_hash[dim_key] = @oom_killed_container_count_hash.key?(dim_key) ? @oom_killed_container_count_hash[dim_key] + 1 : 1
-rescue => errorStr
-  @log.warn "Error in generateOOMKilledPodMetrics: #{errorStr}"
-  ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-end
-end
+    def generateOOMKilledPodMetrics(podControllerName, podNamespace)
+      begin
+        dim_key = [podControllerName, podNamespace].join("~~")
+        @log.info "adding dimension key to oom killed container hash..."
+        @oom_killed_container_count_hash[dim_key] = @oom_killed_container_count_hash.key?(dim_key) ? @oom_killed_container_count_hash[dim_key] + 1 : 1
+      rescue => errorStr
+        @log.warn "Error in generateOOMKilledPodMetrics: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+    end
 
-def generateContainerRestartsMetrics(podControllerName, podNamespace)
-  begin
-    dim_key = [podControllerName, podNamespace].join("~~")
-    @log.info "adding dimension key to container restart count hash..."
-    @container_restart_count_hash[dim_key] = @container_restart_count_hash.key?(dim_key) ? @container_restart_count_hash[dim_key] + 1 : 1
-  rescue => errorStr
-    @log.warn "Error in generateContainerRestartsMetrics: #{errorStr}"
-    ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-  end
-  end
+    def generateContainerRestartsMetrics(podControllerName, podNamespace)
+      begin
+        dim_key = [podControllerName, podNamespace].join("~~")
+        @log.info "adding dimension key to container restart count hash..."
+        @container_restart_count_hash[dim_key] = @container_restart_count_hash.key?(dim_key) ? @container_restart_count_hash[dim_key] + 1 : 1
+      rescue => errorStr
+        @log.warn "Error in generateContainerRestartsMetrics: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+    end
 
+    def generatePodReadyMetrics(podControllerNameDimValue, podNamespaceDimValue, podReadyCondition)
+      begin
+        dim_key = [podControllerName, podNamespace].join("~~")
+        @log.info "adding dimension key to container restart count hash..."
+        if podReadyCondition == true
+          @pod_ready_hash[dim_key] = @pod_ready_hash.key?(dim_key) ? @pod_ready_hash[dim_key] + 1 : 1
+        else
+          @pod_not_ready_hash[dim_key] = @pod_not_ready_hash.key?(dim_key) ? @pod_not_ready_hash[dim_key] + 1 : 1
+        end
+      rescue => errorStr
+        @log.warn "Error in generateContainerRestartsMetrics: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+    end
 
     # def generatePodMetrics(metricName, podControllerName, podNamespace)
     #   begin
@@ -140,7 +160,7 @@ def generateContainerRestartsMetrics(podControllerName, podNamespace)
     #     elsif metricName == Constants::MDM_CONTAINER_RESTART_COUNT
     #       @log.info "adding dimension key to container restart count hash..."
     #       @container_restart_count_hash[dim_key] = @container_restart_count_hash.key?(dim_key) ? @container_restart_count_hash[dim_key] + 1 : 1
-    #       # if !@container_restart_count_hash.key?(dim_key) ? 
+    #       # if !@container_restart_count_hash.key?(dim_key) ?
     #       #   @container_restart_count_hash[dim_key] = metricValue
     #       # end
     #     end

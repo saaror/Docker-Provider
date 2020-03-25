@@ -15,5 +15,6 @@ class Constants
     REASON_OOM_KILLED = "oomkilled"
     MDM_OOM_KILLED_CONTAINER_COUNT = "OomKilledContainerCount"
     MDM_CONTAINER_RESTART_COUNT = "ContainerRestartCount"
+    MDM_POD_READY_PERCENTAGE = "PodReadyPercentage"
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5
 end

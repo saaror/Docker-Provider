@@ -450,8 +450,10 @@ module Fluent
                     record["ContainerLastStatus"] = newRecord
 
                     #Populate mdm metric for OOMKilled container count if lastStateReason is OOMKilled
+                    #lastStateReason = Constants::REASON_OOM_KILLED
                     if lastStateReason.downcase == Constants::REASON_OOM_KILLED
                       # Send OOM Killed state for container only if it terminated in the last 5 minutes, we dont want to keep sending this count forever
+                      #finishedTime = "2020-03-25T01:15:15Z"
                       if !finishedTime.nil? && !finishedTime.empty?
                         finishedTimeParsed = Time.parse(finishedTime)
                         if ((Time.now - finishedTimeParsed) / 60) < 5
@@ -489,6 +491,7 @@ module Fluent
           records.each do |record|
             if !record.nil?
               record["PodRestartCount"] = podRestartCount
+              #record["PodRestartCount"] = 2
               wrapper = {
                           "DataType" => "KUBE_POD_INVENTORY_BLOB",
                           "IPName" => "ContainerInsights",

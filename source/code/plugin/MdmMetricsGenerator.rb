@@ -59,8 +59,10 @@ class MdmMetricsGenerator
     def appendAllPodMetrics(records, batch_time)
       begin
       @log.info "in appendAllPodMetrics..."
+      # @log.info "@oom_killed_container_count_hash: #{@oom_killed_container_count_hash}"
       records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
       @oom_killed_container_count_hash = {}
+      # @log.info "@container_restart_count_hash: #{@container_restart_count_hash}"
       records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
       @container_restart_count_hash = {}
       rescue => errorStr

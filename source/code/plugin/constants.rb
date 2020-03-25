@@ -12,4 +12,7 @@ class Constants
     INSIGHTSMETRICS_TAGS_CONTROLLER_NAME = "controllerName"
     INSIGHTSMETRICS_TAGS_CONTROLLER_KIND = "controllerKind"
     INSIGHTSMETRICS_FLUENT_TAG = "oms.api.InsightsMetrics"
+    REASON_OOM_KILLED = "oomkilled"
+    MDM_OOM_KILLED_CONTAINER_COUNT = "OomKilledContainerCount"
+    MDM_CONTAINER_RESTART_COUNT = "ContainerRestartCount"
 end

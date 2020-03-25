@@ -6,7 +6,7 @@ class MdmMetricsGenerator
   require "json"
   require_relative "MdmAlertTemplates"
   require_relative "ApplicationInsightsUtility"
-  require_relative "mdmMetrics"
+  require_relative "constants"
 
   @log_path = "/var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log"
   @log = Logger.new(@log_path, 1, 5000000)
@@ -59,9 +59,9 @@ class MdmMetricsGenerator
     def appendAllPodMetrics(records, batch_time)
       begin
       @log.info "in appendAllPodMetrics..."
-      records = appendPodMetrics(records, MdmMetrics::OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
+      records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
       @oom_killed_container_count_hash = {}
-      records = appendPodMetrics(records, MdmMetrics::CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
+      records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
       @container_restart_count_hash = {}
       rescue => errorStr
         @log.info "Error in appendAllPodMetrics: #{errorStr}"
@@ -109,12 +109,15 @@ class MdmMetricsGenerator
         @log.info "in generatePodMetrics..."
         # group by distinct dimension values
         dim_key = [podControllerName, podNamespace].join("~~")
-        if metricName == MdmMetrics::OOM_KILLED_CONTAINER_COUNT
+        if metricName == Constants::MDM_OOM_KILLED_CONTAINER_COUNT
           @log.info "adding dimension key to oom killed container hash..."
           @oom_killed_container_count_hash[dim_key] = @oom_killed_container_count_hash.key?(dim_key) ? @oom_killed_container_count_hash[dim_key] + 1 : 1
-        elsif metricName == MdmMetrics::CONTAINER_RESTART_COUNT
+        elsif metricName == Constants::MDM_CONTAINER_RESTART_COUNT
           @log.info "adding dimension key to container restart count hash..."
           @container_restart_count_hash[dim_key] = @container_restart_count_hash.key?(dim_key) ? @container_restart_count_hash[dim_key] + metricValue  : metricValue
+          # if !@container_restart_count_hash.key?(dim_key) ? 
+          #   @container_restart_count_hash[dim_key] = metricValue
+          # end
         end
       rescue => errorStr
         @log.warn "Error in generatePodMetrics: #{errorStr}"

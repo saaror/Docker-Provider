@@ -439,12 +439,28 @@ module Fluent
                   if lastStateObject.key?("reason") && lastStateObject.key?("startedAt") && lastStateObject.key?("finishedAt")
                     newRecord = Hash.new
                     newRecord["lastState"] = lastStateName  # get the name of the last state (ex: terminated)
-                    newRecord["reason"] = lastStateObject["reason"]  # (ex: OOMKilled)
+                    lastStateReason = lastStateObject["reason"]
+                    # newRecord["reason"] = lastStateObject["reason"]  # (ex: OOMKilled)
+                    newRecord["reason"] = lastStateReason  # (ex: OOMKilled)
                     newRecord["startedAt"] = lastStateObject["startedAt"]  # (ex: 2019-07-02T14:58:51Z)
-                    newRecord["finishedAt"] = lastStateObject["finishedAt"]  # (ex: 2019-07-02T14:58:52Z)
+                    finishedTime = lastStateObject["finishedAt"]
+                    newRecord["finishedAt"] = finishedTime  # (ex: 2019-07-02T14:58:52Z)
 
                     # only write to the output field if everything previously ran without error
                     record["ContainerLastStatus"] = newRecord
+
+                    #Populate mdm metric for OOMKilled container count if lastStateReason is OOMKilled
+                    if lastStateReason.downcase == Constants::REASON_OOM_KILLED
+                      # Send OOM Killed state for container only if it terminated in the last 5 minutes, we dont want to keep sending this count forever
+                      if !finishedTime.nil? && !finishedTime.empty?
+                        finishedTimeParsed = Time.parse(finishedTime)
+                        if ((Time.now - finishedTimeParsed) / 60) < 5
+                          @inventoryToMdmConvertor.process_record_for_oom_killed_metric(record["ControllerName"], record["Namespace"])
+                        end
+                        finishedTimeParsed = nil
+                      end
+                    end
+                    lastStateReason = nil
                   else
                     record["ContainerLastStatus"] = Hash.new
                   end
@@ -530,9 +546,9 @@ module Fluent
           #end
           router.emit_stream(@@kubeperfTag, kubePerfEventStream) if kubePerfEventStream
 
-          begin 
+          begin
             #start GPU InsightsMetrics items
-            
+
             containerGPUInsightsMetricsDataItems = []
             containerGPUInsightsMetricsDataItems.concat(KubernetesApiClient.getContainerResourceRequestsAndLimitsAsInsightsMetrics(podInventory, "requests", "nvidia.com/gpu", "containerGpuRequests", batchTime))
             containerGPUInsightsMetricsDataItems.concat(KubernetesApiClient.getContainerResourceRequestsAndLimitsAsInsightsMetrics(podInventory, "limits", "nvidia.com/gpu", "containerGpuLimits", batchTime))
@@ -547,7 +563,7 @@ module Fluent
                 "DataItems" => [insightsMetricsRecord.each { |k, v| insightsMetricsRecord[k] = v }],
               }
               insightsMetricsEventStream.add(emitTime, wrapper) if wrapper
-              
+
               if (!@@istestvar.nil? && !@@istestvar.empty? && @@istestvar.casecmp("true") == 0 && insightsMetricsEventStream.count > 0)
                 $log.info("kubePodInsightsMetricsEmitStreamSuccess @ #{Time.now.utc.iso8601}")
               end
@@ -602,7 +618,7 @@ module Fluent
         #Updating value for AppInsights telemetry
         @podCount += podInventory["items"].length
 
-        
+
         if (!@@istestvar.nil? && !@@istestvar.empty? && @@istestvar.casecmp("true") == 0 && eventStream.count > 0)
           $log.info("kubePodInventoryEmitStreamSuccess @ #{Time.now.utc.iso8601}")
         end

@@ -39,7 +39,6 @@ MAINTAINER:              'Microsoft Corporation'
 /opt/microsoft/omsagent/plugin/kubelet_utils.rb;			         source/code/plugin/kubelet_utils.rb;			    	644; root; root
 /opt/microsoft/omsagent/plugin/CustomMetricsUtils.rb;			     source/code/plugin/CustomMetricsUtils.rb;			    	644; root; root
 /opt/microsoft/omsagent/plugin/constants.rb;			             source/code/plugin/constants.rb;			    	644; root; root
-/opt/microsoft/omsagent/plugin/mdmMetrics.rb;			             source/code/plugin/mdmMetrics.rb;			    	644; root; root
 /opt/microsoft/omsagent/plugin/MdmAlertTemplates.rb;                 source/code/plugin/MdmAlertTemplates.rb;                644; root; root
 /opt/microsoft/omsagent/plugin/MdmMetricsGenerator.rb;              source/code/plugin/MdmMetricsGenerator.rb;            644; root; root
 

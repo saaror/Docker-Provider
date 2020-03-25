@@ -383,6 +383,9 @@ module Fluent
           if !podContainers.empty? #container status block start
             podContainers.each do |container|
               containerRestartCount = 0
+              lastFinishedTime = nil
+              # Need this flag to determine if we need to process container data for mdm metrics like oomkilled and container restart
+              # containerTerminatedInLast5Mins = false
               #container Id is of the form
               #docker://dfd9da983f1fd27432fb2c1fe3049c0a1d25b1c697b2dc1a530c986e58b16527
               if !container["containerID"].nil?
@@ -402,6 +405,8 @@ module Fluent
               #itself in the form of a container label.
               containerRestartCount = container["restartCount"]
               record["ContainerRestartCount"] = containerRestartCount
+
+              
               containerStatus = container["state"]
               record["ContainerStatusReason"] = ""
               # state is of the following form , so just picking up the first key name
@@ -443,24 +448,15 @@ module Fluent
                     # newRecord["reason"] = lastStateObject["reason"]  # (ex: OOMKilled)
                     newRecord["reason"] = lastStateReason  # (ex: OOMKilled)
                     newRecord["startedAt"] = lastStateObject["startedAt"]  # (ex: 2019-07-02T14:58:51Z)
-                    finishedTime = lastStateObject["finishedAt"]
-                    newRecord["finishedAt"] = finishedTime  # (ex: 2019-07-02T14:58:52Z)
+                    lastFinishedTime = lastStateObject["finishedAt"]
+                    newRecord["finishedAt"] = lastFinishedTime  # (ex: 2019-07-02T14:58:52Z)
 
                     # only write to the output field if everything previously ran without error
                     record["ContainerLastStatus"] = newRecord
 
                     #Populate mdm metric for OOMKilled container count if lastStateReason is OOMKilled
-                    #lastStateReason = Constants::REASON_OOM_KILLED
                     if lastStateReason.downcase == Constants::REASON_OOM_KILLED
-                      # Send OOM Killed state for container only if it terminated in the last 5 minutes, we dont want to keep sending this count forever
-                      #finishedTime = "2020-03-25T01:15:15Z"
-                      if !finishedTime.nil? && !finishedTime.empty?
-                        finishedTimeParsed = Time.parse(finishedTime)
-                        if ((Time.now - finishedTimeParsed) / 60) < 5
-                          @inventoryToMdmConvertor.process_record_for_oom_killed_metric(record["ControllerName"], record["Namespace"])
-                        end
-                        finishedTimeParsed = nil
-                      end
+                      @inventoryToMdmConvertor.process_record_for_oom_killed_metric(record["ControllerName"], record["Namespace"], lastFinishedTime)
                     end
                     lastStateReason = nil
                   else
@@ -469,6 +465,11 @@ module Fluent
                 else
                   record["ContainerLastStatus"] = Hash.new
                 end
+
+              #Populate mdm metric for container restart count if greater than 0
+              if (!containerRestartCount.nil? && (containerRestartCount.is_a? Integer) && containerRestartCount > 0)
+                @inventoryToMdmConvertor.process_record_for_container_restarts_metric(record["ControllerName"], record["Namespace"], lastFinishedTime)
+              end
               rescue => errorStr
                 $log.warn "Failed in parse_and_emit_record pod inventory while processing ContainerLastStatus: #{errorStr}"
                 $log.debug_backtrace(errorStr.backtrace)
@@ -570,7 +571,6 @@ module Fluent
               if (!@@istestvar.nil? && !@@istestvar.empty? && @@istestvar.casecmp("true") == 0 && insightsMetricsEventStream.count > 0)
                 $log.info("kubePodInsightsMetricsEmitStreamSuccess @ #{Time.now.utc.iso8601}")
               end
-
             end
 
             router.emit_stream(Constants::INSIGHTSMETRICS_FLUENT_TAG, insightsMetricsEventStream) if insightsMetricsEventStream
@@ -620,7 +620,6 @@ module Fluent
 
         #Updating value for AppInsights telemetry
         @podCount += podInventory["items"].length
-
 
         if (!@@istestvar.nil? && !@@istestvar.empty? && @@istestvar.casecmp("true") == 0 && eventStream.count > 0)
           $log.info("kubePodInventoryEmitStreamSuccess @ #{Time.now.utc.iso8601}")

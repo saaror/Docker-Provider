@@ -15,4 +15,5 @@ class Constants
     REASON_OOM_KILLED = "oomkilled"
     MDM_OOM_KILLED_CONTAINER_COUNT = "OomKilledContainerCount"
     MDM_CONTAINER_RESTART_COUNT = "ContainerRestartCount"
+    CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5
 end

@@ -17,6 +17,7 @@ class MdmMetricsGenerator
   @container_restart_count_hash = {}
   @pod_ready_hash = {}
   @pod_not_ready_hash = {}
+  @pod_ready_percentage_hash = {}
 
   def initialize
   end
@@ -57,22 +58,33 @@ class MdmMetricsGenerator
     #   @oom_killed_container_count_hash = {}
     #   return records
     # end
-
-    def appendAllPodMetrics(records, batch_time)
+    def populatePodReadyPercentageHash
       begin
-        @log.info "in appendAllPodMetrics..."
-        @log.info "@oom_killed_container_count_hash: #{@oom_killed_container_count_hash}"
-        records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
-        @oom_killed_container_count_hash = {}
-        @log.info "@container_restart_count_hash: #{@container_restart_count_hash}"
-        records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
-        @container_restart_count_hash = {}
-        records = appendPodMetrics(records, Constants::MDM_POD_READY_PERCENTAGE, @pod_ready_hash, batch_time)
+        @log.info "in getPodReadyPercentage..."
+        @pod_ready_hash.each { |dim_key, value|
+          podsNotReady = @pod_not_ready_hash.key?(dim_key) ? @pod_not_ready_hash[dim_key] : 0
+          totalPods = value + podsNotReady
+          podsReadyPercentage = (value / totalPods) * 100
+          @pod_ready_percentage_hash[dim_key] = podsReadyPercentage
+          # Deleting this key value pair from not ready hash,
+          # so that we can get those dimensions for which there are 100% of the pods in not ready state
+          @pod_not_ready_hash.delete(dim_key)
+        }
+
+        # Add 0% pod ready for these dimensions
+        if @pod_not_ready_hash.length > 0
+          @pod_ready_hash.each { |key, value|
+            @pod_ready_percentage_hash[key] = 0
+          }
+        end
+
+        # Cleaning up hashes after use
+        @pod_ready_hash = {}
+        @pod_not_ready_hash = {}
       rescue => errorStr
-        @log.info "Error in appendAllPodMetrics: #{errorStr}"
+        @log.info "Error in getPodReadyPercentage: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
-      return records
     end
 
     def appendPodMetrics(records, metricName, metricHash, batch_time)
@@ -109,6 +121,26 @@ class MdmMetricsGenerator
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
       @log.info "Done appending PodMetrics for metric: #{metricName}..."
+      return records
+    end
+
+    def appendAllPodMetrics(records, batch_time)
+      begin
+        @log.info "in appendAllPodMetrics..."
+        @log.info "@oom_killed_container_count_hash: #{@oom_killed_container_count_hash}"
+        records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
+        @oom_killed_container_count_hash = {}
+        @log.info "@container_restart_count_hash: #{@container_restart_count_hash}"
+        records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
+        @container_restart_count_hash = {}
+        # Computer the percentage here, because we need to do this after all chunks have been processed.
+        populatePodReadyPercentageHash
+        records = appendPodMetrics(records, Constants::MDM_POD_READY_PERCENTAGE, @pod_ready_percentage_hash, batch_time)
+        @pod_ready_percentage_hash = {}
+      rescue => errorStr
+        @log.info "Error in appendAllPodMetrics: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
       return records
     end
 

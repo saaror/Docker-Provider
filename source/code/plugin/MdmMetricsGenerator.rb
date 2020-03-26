@@ -135,6 +135,7 @@ class MdmMetricsGenerator
         @container_restart_count_hash = {}
         # Computer the percentage here, because we need to do this after all chunks have been processed.
         populatePodReadyPercentageHash
+        @log.info "@pod_ready_percentage_hash: #{@pod_ready_percentage_hash}"
         records = appendPodMetrics(records, Constants::MDM_POD_READY_PERCENTAGE, @pod_ready_percentage_hash, batch_time)
         @pod_ready_percentage_hash = {}
       rescue => errorStr
@@ -166,17 +167,17 @@ class MdmMetricsGenerator
       end
     end
 
-    def generatePodReadyMetrics(podControllerNameDimValue, podNamespaceDimValue, podReadyCondition)
+    def generatePodReadyMetrics(podControllerName, podNamespace, podReadyCondition)
       begin
         dim_key = [podControllerName, podNamespace].join("~~")
-        @log.info "adding dimension key to container restart count hash..."
+        @log.info "adding dimension key to pod ready hash..."
         if podReadyCondition == true
           @pod_ready_hash[dim_key] = @pod_ready_hash.key?(dim_key) ? @pod_ready_hash[dim_key] + 1 : 1
         else
           @pod_not_ready_hash[dim_key] = @pod_not_ready_hash.key?(dim_key) ? @pod_not_ready_hash[dim_key] + 1 : 1
         end
       rescue => errorStr
-        @log.warn "Error in generateContainerRestartsMetrics: #{errorStr}"
+        @log.warn "Error in generatePodReadyMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
     end

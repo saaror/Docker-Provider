@@ -68,7 +68,7 @@ class MdmMetricsGenerator
           @pod_ready_percentage_hash[dim_key] = podsReadyPercentage
           # Deleting this key value pair from not ready hash,
           # so that we can get those dimensions for which there are 100% of the pods in not ready state
-          if @pod_not_ready_hash.key?(dim_key) ?
+          if (@pod_not_ready_hash.key?(dim_key))
             @pod_not_ready_hash.delete(dim_key)
           end
         }

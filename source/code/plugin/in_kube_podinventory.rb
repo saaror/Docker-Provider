@@ -320,9 +320,6 @@ module Fluent
               end
             end
           end
-          
-          #Invoke the helper method to compute ready/not ready mdm metric
-          @inventoryToMdmConvertor.process_record_for_pods_ready_metric(record["ControllerName"], record["Namespace"], items["status"]["conditions"])
 
           if podReadyCondition == false
             record["PodStatus"] = "Unknown"
@@ -374,6 +371,9 @@ module Fluent
           podRestartCount = 0
           record["PodRestartCount"] = 0
 
+          #Invoke the helper method to compute ready/not ready mdm metric
+          @inventoryToMdmConvertor.process_record_for_pods_ready_metric(record["ControllerName"], record["Namespace"], items["status"]["conditions"])
+
           podContainers = []
           if items["status"].key?("containerStatuses") && !items["status"]["containerStatuses"].empty?
             podContainers = podContainers + items["status"]["containerStatuses"]
@@ -410,7 +410,6 @@ module Fluent
               containerRestartCount = container["restartCount"]
               record["ContainerRestartCount"] = containerRestartCount
 
-              
               containerStatus = container["state"]
               record["ContainerStatusReason"] = ""
               # state is of the following form , so just picking up the first key name
@@ -470,10 +469,10 @@ module Fluent
                   record["ContainerLastStatus"] = Hash.new
                 end
 
-              #Populate mdm metric for container restart count if greater than 0
-              if (!containerRestartCount.nil? && (containerRestartCount.is_a? Integer) && containerRestartCount > 0)
-                @inventoryToMdmConvertor.process_record_for_container_restarts_metric(record["ControllerName"], record["Namespace"], lastFinishedTime)
-              end
+                #Populate mdm metric for container restart count if greater than 0
+                if (!containerRestartCount.nil? && (containerRestartCount.is_a? Integer) && containerRestartCount > 0)
+                  @inventoryToMdmConvertor.process_record_for_container_restarts_metric(record["ControllerName"], record["Namespace"], lastFinishedTime)
+                end
               rescue => errorStr
                 $log.warn "Failed in parse_and_emit_record pod inventory while processing ContainerLastStatus: #{errorStr}"
                 $log.debug_backtrace(errorStr.backtrace)

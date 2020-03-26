@@ -60,7 +60,7 @@ class MdmMetricsGenerator
     # end
     def populatePodReadyPercentageHash
       begin
-        @log.info "in getPodReadyPercentage..."
+        @log.info "in populatePodReadyPercentageHash..."
         @pod_ready_hash.each { |dim_key, value|
           podsNotReady = @pod_not_ready_hash.key?(dim_key) ? @pod_not_ready_hash[dim_key] : 0
           totalPods = value + podsNotReady
@@ -68,7 +68,9 @@ class MdmMetricsGenerator
           @pod_ready_percentage_hash[dim_key] = podsReadyPercentage
           # Deleting this key value pair from not ready hash,
           # so that we can get those dimensions for which there are 100% of the pods in not ready state
-          @pod_not_ready_hash.delete(dim_key)
+          if @pod_not_ready_hash.key?(dim_key) ?
+            @pod_not_ready_hash.delete(dim_key)
+          end
         }
 
         # Add 0% pod ready for these dimensions
@@ -82,7 +84,7 @@ class MdmMetricsGenerator
         @pod_ready_hash = {}
         @pod_not_ready_hash = {}
       rescue => errorStr
-        @log.info "Error in getPodReadyPercentage: #{errorStr}"
+        @log.info "Error in populatePodReadyPercentageHash: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
     end
@@ -97,9 +99,6 @@ class MdmMetricsGenerator
               next
             end
 
-            if metricName == Constants::MDM_POD_READY_PERCENTAGE
-              value = getPodReadyPercentage(key, value)
-            end
             # get dimension values by key
             podControllerNameDimValue = key_elements[0]
             podNamespaceDimValue = key_elements[1]

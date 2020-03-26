@@ -75,7 +75,7 @@ class MdmMetricsGenerator
 
         # Add 0% pod ready for these dimensions
         if @pod_not_ready_hash.length > 0
-          @pod_ready_hash.each { |key, value|
+          @pod_not_ready_hash.each { |key, value|
             @pod_ready_percentage_hash[key] = 0
           }
         end

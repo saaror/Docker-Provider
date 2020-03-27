@@ -78,7 +78,6 @@ class KubeletUtils
               end
             end
           end
-
           # return [cpu_capacity, memory_capacity]
         end
       rescue => errorStr

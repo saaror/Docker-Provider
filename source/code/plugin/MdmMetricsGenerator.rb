@@ -19,6 +19,12 @@ class MdmMetricsGenerator
   @pod_not_ready_hash = {}
   @pod_ready_percentage_hash = {}
 
+  @@metric_name_metric_percentage_name_hash = {
+    @@cpu_usage_milli_cores => "cpuUsagePercentage",
+    "memoryRssBytes" => "memoryRssPercentage",
+    "memoryWorkingSetBytes" => "memoryWorkingSetPercentage",
+  }
+
   def initialize
   end
 
@@ -140,6 +146,58 @@ class MdmMetricsGenerator
       rescue => errorStr
         @log.info "Error in appendAllPodMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      return records
+    end
+
+    def getContainerResourceUtilMetricRecord(metricName, percentageMetricValue, dims)
+      records = []
+      begin
+        dimElements = dims.split("~~")
+        if dimElements.length != 4
+          return records
+        end
+
+        # get dimension values
+        containerNameDimValue = dimElements[0]
+        podNameDimValue = dimElements[1]
+        controllerNameDimValue = dimElements[2]
+        podNamespaceDimValue = dimElements[3]
+
+        
+      rescue => errorStr
+        @log.info "Error in getContainerResourceUtilMetricRecords: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      return records
+    end
+
+    def getNodeResourceMetricRecords(record, metric_name, metric_value, percentage_metric_value)
+      records = []
+      custommetricrecord = MdmAlertTemplates::Node_resource_metrics_template % {
+        timestamp: record["DataItems"][0]["Timestamp"],
+        metricName: metric_name,
+        hostvalue: record["DataItems"][0]["Host"],
+        objectnamevalue: record["DataItems"][0]["ObjectName"],
+        instancenamevalue: record["DataItems"][0]["InstanceName"],
+        metricminvalue: metric_value,
+        metricmaxvalue: metric_value,
+        metricsumvalue: metric_value,
+      }
+      records.push(JSON.parse(custommetricrecord))
+
+      if !percentage_metric_value.nil?
+        additional_record = MdmAlertTemplates::Node_resource_metrics_template % {
+          timestamp: record["DataItems"][0]["Timestamp"],
+          metricName: @@metric_name_metric_percentage_name_hash[metric_name],
+          hostvalue: record["DataItems"][0]["Host"],
+          objectnamevalue: record["DataItems"][0]["ObjectName"],
+          instancenamevalue: record["DataItems"][0]["InstanceName"],
+          metricminvalue: percentage_metric_value,
+          metricmaxvalue: percentage_metric_value,
+          metricsumvalue: percentage_metric_value,
+        }
+        records.push(JSON.parse(additional_record))
       end
       return records
     end

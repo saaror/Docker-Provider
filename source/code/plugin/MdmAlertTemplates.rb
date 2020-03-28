@@ -58,4 +58,29 @@ class MdmAlertTemplates
             }
         }
     }'
+
+    Node_resource_metrics_template = '
+            {
+                "time": "%{timestamp}",
+                "data": {
+                    "baseData": {
+                        "metric": "%{metricName}",
+                        "namespace": "Insights.Container/nodes",
+                        "dimNames": [
+                        "host"
+                        ],
+                        "series": [
+                        {
+                            "dimValues": [
+                            "%{hostvalue}"
+                            ],
+                            "min": %{metricminvalue},
+                            "max": %{metricmaxvalue},
+                            "sum": %{metricsumvalue},
+                            "count": 1
+                        }
+                        ]
+                    }
+                }
+            }'
 end

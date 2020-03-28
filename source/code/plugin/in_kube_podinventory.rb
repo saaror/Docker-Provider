@@ -285,20 +285,24 @@ module Fluent
             next
           end
 
-          if podNameSpace.eql?("kube-system") && !items["metadata"].key?("ownerReferences")
-            # The above case seems to be the only case where you have horizontal scaling of pods
-            # but no controller, in which case cAdvisor picks up kubernetes.io/config.hash
-            # instead of the actual poduid. Since this uid is not being surface into the UX
-            # its ok to use this.
-            # Use kubernetes.io/config.hash to be able to correlate with cadvisor data
-            if items["metadata"]["annotations"].nil?
-              next
-            else
-              podUid = items["metadata"]["annotations"]["kubernetes.io/config.hash"]
-            end
-          else
-            podUid = items["metadata"]["uid"]
+          podUid = KubernetesApiClient.getPodUid(podNameSpace, items["metadata"])
+          if podUid.nil?
+            next
           end
+          # if podNameSpace.eql?("kube-system") && !items["metadata"].key?("ownerReferences")
+          #   # The above case seems to be the only case where you have horizontal scaling of pods
+          #   # but no controller, in which case cAdvisor picks up kubernetes.io/config.hash
+          #   # instead of the actual poduid. Since this uid is not being surface into the UX
+          #   # its ok to use this.
+          #   # Use kubernetes.io/config.hash to be able to correlate with cadvisor data
+          #   if items["metadata"]["annotations"].nil?
+          #     next
+          #   else
+          #     podUid = items["metadata"]["annotations"]["kubernetes.io/config.hash"]
+          #   end
+          # else
+          #   podUid = items["metadata"]["uid"]
+          # end
           record["PodUid"] = podUid
           record["PodLabel"] = [items["metadata"]["labels"]]
           record["Namespace"] = podNameSpace

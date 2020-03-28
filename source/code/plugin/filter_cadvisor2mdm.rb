@@ -18,8 +18,8 @@ module Fluent
     config_param :custom_metrics_azure_regions, :string
     config_param :metrics_to_collect, :string, :default => "cpuUsageNanoCores,memoryWorkingSetBytes,memoryRssBytes"
 
-    @@cpu_usage_milli_cores = "cpuUsageMillicores"
-    @@cpu_usage_nano_cores = "cpuusagenanocores"
+    # @@cpu_usage_milli_cores = "cpuUsageMillicores"
+    # @@cpu_usage_nano_cores = "cpuusagenanocores"
     @@object_name_k8s_node = "K8SNode"
     @@hostName = (OMS::Common.get_hostname)
 
@@ -83,8 +83,8 @@ module Fluent
 
           if object_name == @@object_name_k8s_node && @metrics_to_collect_hash.key?(counter_name.downcase)
             # Compute and send % CPU and Memory
-            if counter_name.downcase == @@cpu_usage_nano_cores
-              metric_name = @@cpu_usage_milli_cores
+            if counter_name == Constants::CPU_USAGE_NANO_CORES
+              metric_name =  Constants::CPU_USAGE_MILLI_CORES
               metric_value /= 1000000 #cadvisor record is in nanocores. Convert to mc
               @log.info "Metric_value: #{metric_value} CPU Capacity #{@cpu_capacity}"
               if @cpu_capacity != 0.0
@@ -102,13 +102,13 @@ module Fluent
             return MdmMetricsGenerator.getNodeResourceMetricRecords(record, metric_name, metric_value, percentage_metric_value)
           elsif object_name == Constants::OBJECT_NAME_K8S_CONTAINER && @metrics_to_collect_hash.key?(counter_name.downcase)
             instanceName = record["DataItems"][0]["InstanceName"]
-            metricName = counter_name.downcase
+            metricName = counter_name
             # Using node cpu capacity in the absence of container cpu capacity since the container will end up using the
             # node's capacity in this case. Converting this to nanocores for computation purposes, since this is in millicores
             containerCpuLimit = @cpu_capacity * 1000000
             containerMemoryLimit = @memory_capacity
 
-            if counter_name.downcase == @@cpu_usage_nano_cores
+            if counter_name == Constants::CPU_USAGE_NANO_CORES
               if !instanceName.nil? && !@containerCpuLimitHash[instanceName].nil?
                 containerCpuLimit = @containerCpuLimitHash[instanceName]
               end
@@ -129,7 +129,7 @@ module Fluent
 
             # Send this metric only if resource utilization is greater than 95%
             if percentage_metric_value > 95.0
-              return getContainerResourceUtilMetricRecords(metricName, percentage_metric_value, @containerResourceDimensionHash[instanceName])
+              return getContainerResourceUtilMetricRecords(record, metricName, percentage_metric_value, @containerResourceDimensionHash[instanceName])
             else
               return []
             end

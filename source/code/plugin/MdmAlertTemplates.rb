@@ -25,4 +25,37 @@ class MdmAlertTemplates
             }
         }
     }'
+
+    Container_resource_utilization_template = '
+    {
+        "time": "%{timestamp}",
+        "data": {
+            "baseData": {
+                "metric": "%{metricName}",
+                "namespace": "insights.container/pods",
+                "dimNames": [
+                    "containerName",
+                    "podName",
+                    "controllerName",
+                    "Kubernetes namespace",
+                    "percentage"
+                ],
+                "series": [
+                {
+                    "dimValues": [
+                        "%{containerNameDimValue}",
+                        "%{podNameDimValue}",
+                        "%{controllerNameDimValue}",
+                        "%{namespaceDimValue}",
+                        "95"
+                    ],
+                    "min": %{containerResourceUtilizationPercentage},
+                    "max": %{containerResourceUtilizationPercentage},
+                    "sum": %{containerResourceUtilizationPercentage},
+                    "count": 1
+                }
+                ]
+            }
+        }
+    }'
 end

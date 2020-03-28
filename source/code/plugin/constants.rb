@@ -17,4 +17,5 @@ class Constants
     MDM_CONTAINER_RESTART_COUNT = "ContainerRestartCount"
     MDM_POD_READY_PERCENTAGE = "PodReadyPercentage"
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5
+    OBJECT_NAME_K8S_CONTAINER = "K8SContainer"
 end

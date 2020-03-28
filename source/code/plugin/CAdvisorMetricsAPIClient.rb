@@ -201,7 +201,7 @@ class CAdvisorMetricsAPIClient
               metricProps = {}
               metricProps["Timestamp"] = metricTime
               metricProps["Host"] = hostName
-              metricProps["ObjectName"] = "K8SContainer"
+              metricProps["ObjectName"] = Constants::OBJECT_NAME_K8S_CONTAINER
               metricProps["InstanceName"] = clusterId + "/" + podUid + "/" + containerName
 
               metricProps["Collections"] = []
@@ -408,7 +408,7 @@ class CAdvisorMetricsAPIClient
               metricProps = {}
               metricProps["Timestamp"] = metricTime
               metricProps["Host"] = hostName
-              metricProps["ObjectName"] = "K8SContainer"
+              metricProps["ObjectName"] = Constants::OBJECT_NAME_K8S_CONTAINER
               metricProps["InstanceName"] = clusterId + "/" + podUid + "/" + containerName
 
               metricProps["Collections"] = []
@@ -498,7 +498,7 @@ class CAdvisorMetricsAPIClient
               metricProps = {}
               metricProps["Timestamp"] = metricTime
               metricProps["Host"] = hostName
-              metricProps["ObjectName"] = "K8SContainer"
+              metricProps["ObjectName"] = Constants::OBJECT_NAME_K8S_CONTAINER
               metricProps["InstanceName"] = clusterId + "/" + podUid + "/" + containerName
 
               metricProps["Collections"] = []
@@ -749,7 +749,7 @@ class CAdvisorMetricsAPIClient
               metricProps = {}
               metricProps["Timestamp"] = metricTime
               metricProps["Host"] = hostName
-              metricProps["ObjectName"] = "K8SContainer"
+              metricProps["ObjectName"] = Constants::OBJECT_NAME_K8S_CONTAINER
               metricProps["InstanceName"] = clusterId + "/" + podUid + "/" + containerName
 
               metricProps["Collections"] = []

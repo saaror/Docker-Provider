@@ -129,7 +129,7 @@ module Fluent
 
             # Send this metric only if resource utilization is greater than 95%
             if percentage_metric_value > 95.0
-              return getContainerResourceUtilMetricRecords(record, metricName, percentage_metric_value, @containerResourceDimensionHash[instanceName])
+              return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record, metricName, percentage_metric_value, @containerResourceDimensionHash[instanceName])
             else
               return []
             end

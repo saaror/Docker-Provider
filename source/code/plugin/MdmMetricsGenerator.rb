@@ -154,7 +154,7 @@ class MdmMetricsGenerator
       return records
     end
 
-    def getContainerResourceUtilMetricRecord(metricName, percentageMetricValue, dims)
+    def getContainerResourceUtilMetricRecords(metricName, percentageMetricValue, dims)
       records = []
       begin
         dimElements = dims.split("~~")
@@ -180,7 +180,6 @@ class MdmMetricsGenerator
           metricsumvalue: metric_value,
         }
         records.push(JSON.parse(resourceUtilRecord))
-
       rescue => errorStr
         @log.info "Error in getContainerResourceUtilMetricRecords: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
@@ -190,30 +189,35 @@ class MdmMetricsGenerator
 
     def getNodeResourceMetricRecords(record, metric_name, metric_value, percentage_metric_value)
       records = []
-      custommetricrecord = MdmAlertTemplates::Node_resource_metrics_template % {
-        timestamp: record["DataItems"][0]["Timestamp"],
-        metricName: metric_name,
-        hostvalue: record["DataItems"][0]["Host"],
-        objectnamevalue: record["DataItems"][0]["ObjectName"],
-        instancenamevalue: record["DataItems"][0]["InstanceName"],
-        metricminvalue: metric_value,
-        metricmaxvalue: metric_value,
-        metricsumvalue: metric_value,
-      }
-      records.push(JSON.parse(custommetricrecord))
-
-      if !percentage_metric_value.nil?
-        additional_record = MdmAlertTemplates::Node_resource_metrics_template % {
+      begin
+        custommetricrecord = MdmAlertTemplates::Node_resource_metrics_template % {
           timestamp: record["DataItems"][0]["Timestamp"],
-          metricName: @@metric_name_metric_percentage_name_hash[metric_name],
+          metricName: metric_name,
           hostvalue: record["DataItems"][0]["Host"],
           objectnamevalue: record["DataItems"][0]["ObjectName"],
           instancenamevalue: record["DataItems"][0]["InstanceName"],
-          metricminvalue: percentage_metric_value,
-          metricmaxvalue: percentage_metric_value,
-          metricsumvalue: percentage_metric_value,
+          metricminvalue: metric_value,
+          metricmaxvalue: metric_value,
+          metricsumvalue: metric_value,
         }
-        records.push(JSON.parse(additional_record))
+        records.push(JSON.parse(custommetricrecord))
+
+        if !percentage_metric_value.nil?
+          additional_record = MdmAlertTemplates::Node_resource_metrics_template % {
+            timestamp: record["DataItems"][0]["Timestamp"],
+            metricName: @@metric_name_metric_percentage_name_hash[metric_name],
+            hostvalue: record["DataItems"][0]["Host"],
+            objectnamevalue: record["DataItems"][0]["ObjectName"],
+            instancenamevalue: record["DataItems"][0]["InstanceName"],
+            metricminvalue: percentage_metric_value,
+            metricmaxvalue: percentage_metric_value,
+            metricsumvalue: percentage_metric_value,
+          }
+          records.push(JSON.parse(additional_record))
+        end
+      rescue => errorStr
+        @log.info "Error in getNodeResourceMetricRecords: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
       return records
     end

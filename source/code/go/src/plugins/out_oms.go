@@ -21,22 +21,22 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	Log("Initializing out_oms go plugin for fluentbit")
-	agentVersion := os.Getenv("AGENT_VERSION")
-	if strings.Compare(strings.ToLower(os.Getenv("CONTROLLER_TYPE")), "replicaset") == 0 {
-		Log("Using %s for plugin config \n", ReplicaSetContainerLogPluginConfFilePath)
-		InitializePlugin(ReplicaSetContainerLogPluginConfFilePath, agentVersion)
-	} else {
-		Log("Using %s for plugin config \n", DaemonSetContainerLogPluginConfFilePath)
-		InitializePlugin(DaemonSetContainerLogPluginConfFilePath, agentVersion)
-	}
-	enableTelemetry := output.FLBPluginConfigKey(ctx, "EnableTelemetry")
-	if strings.Compare(strings.ToLower(enableTelemetry), "true") == 0 {
+	agentVersion := "ciWindowsPrivatePreview"//os.Getenv("AGENT_VERSION")
+	// if strings.Compare(strings.ToLower(os.Getenv("CONTROLLER_TYPE")), "replicaset") == 0 {
+	// 	Log("Using %s for plugin config \n", ReplicaSetContainerLogPluginConfFilePath)
+	// 	InitializePlugin(ReplicaSetContainerLogPluginConfFilePath, agentVersion)
+	// } else {
+	// 	Log("Using %s for plugin config \n", DaemonSetContainerLogPluginConfFilePath)
+		InitializePlugin("", agentVersion)//InitializePlugin(DaemonSetContainerLogPluginConfFilePath, agentVersion)
+	// }
+	// enableTelemetry := output.FLBPluginConfigKey(ctx, "EnableTelemetry")
+	// if strings.Compare(strings.ToLower(enableTelemetry), "true") == 0 {
 		telemetryPushInterval := output.FLBPluginConfigKey(ctx, "TelemetryPushIntervalSeconds")
 		go SendContainerLogPluginMetrics(telemetryPushInterval)
-	} else {
-		Log("Telemetry is not enabled for the plugin %s \n", output.FLBPluginConfigKey(ctx, "Name"))
-		return output.FLB_OK
-	}
+	// } else {
+	// 	Log("Telemetry is not enabled for the plugin %s \n", output.FLBPluginConfigKey(ctx, "Name"))
+	// 	return output.FLB_OK
+	// }
 	return output.FLB_OK
 }
 
@@ -60,12 +60,19 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	}
 
 	incomingTag := strings.ToLower(C.GoString(tag))
+	/**
+	********************************************
+	********************************************
+	* This needs to be updated in the fluent-bit conf file : Confirm before merging to ci_feature!
+	********************************************
+	********************************************
+	*/
 	if strings.Contains(incomingTag, "oms.container.log.flbplugin") {
 		// This will also include populating cache to be sent as for config events
 		return PushToAppInsightsTraces(records, appinsights.Information, incomingTag)
-	} else if strings.Contains(incomingTag, "oms.container.perf.telegraf") {
-		return PostTelegrafMetricsToLA(records)
-	}
+	// } else if strings.Contains(incomingTag, "oms.container.perf.telegraf") {
+	// 	return PostTelegrafMetricsToLA(records)
+	// }
 
 	return PostDataHelper(records)
 }
@@ -73,7 +80,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 // FLBPluginExit exits the plugin
 func FLBPluginExit() int {
 	ContainerLogTelemetryTicker.Stop()
-	ContainerImageNameRefreshTicker.Stop()
+	// ContainerImageNameRefreshTicker.Stop()
 	return output.FLB_OK
 }
 

@@ -18,6 +18,7 @@ class Constants
     MDM_POD_READY_PERCENTAGE = "PodReadyPercentage"
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5
     OBJECT_NAME_K8S_CONTAINER = "K8SContainer"
+    OBJECT_NAME_K8S_NODE = "K8SNode"
     CPU_USAGE_NANO_CORES = "cpuUsageNanoCores"
     CPU_USAGE_MILLI_CORES = "cpuUsageMillicores"
 end

@@ -20,7 +20,7 @@ module Fluent
 
     # @@cpu_usage_milli_cores = "cpuUsageMillicores"
     # @@cpu_usage_nano_cores = "cpuusagenanocores"
-    @@object_name_k8s_node = "K8SNode"
+    # @@object_name_k8s_node = "K8SNode"
     @@hostName = (OMS::Common.get_hostname)
 
     @process_incoming_stream = true
@@ -81,7 +81,7 @@ module Fluent
           percentage_metric_value = 0.0
           metric_value = record["DataItems"][0]["Collections"][0]["Value"]
 
-          if object_name == @@object_name_k8s_node && @metrics_to_collect_hash.key?(counter_name.downcase)
+          if object_name == Constants::OBJECT_NAME_K8S_NODE && @metrics_to_collect_hash.key?(counter_name.downcase)
             # Compute and send % CPU and Memory
             if counter_name == Constants::CPU_USAGE_NANO_CORES
               metric_name =  Constants::CPU_USAGE_MILLI_CORES
@@ -113,15 +113,15 @@ module Fluent
                 containerCpuLimit = @containerCpuLimitHash[instanceName]
               end
 
-              # Checking if KubernetesApiClient ran into error while getting the numeric value
+              # Checking if KubernetesApiClient ran into error while getting the numeric value or if we failed to get the limit
               if containerCpuLimit != 0
                 percentage_metric_value = (metric_value) * 100 / containerCpuLimit
               end
             elsif counter_name.start_with?("memory")
-              # metric_name = counter_name
               if !instanceName.nil? && !@containerMemoryLimitHash[instanceName].nil?
                 containerMemoryLimit = @containerMemoryLimitHash[instanceName]
               end
+              # Checking if KubernetesApiClient ran into error while getting the numeric value or if we failed to get the limit
               if containerMemoryLimit != 0
                 percentage_metric_value = (metric_value) * 100 / containerMemoryLimit
               end
@@ -134,17 +134,17 @@ module Fluent
               return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record, metricName, percentage_metric_value, @containerResourceDimensionHash[instanceName])
             else
               return []
-            end
+            end #end if block for percentage metric > 95% check
           else
-            return []
+            return [] #end if block for object type check
           end
         else
           return []
-        end
+        end #end if block for process incoming stream check
       rescue Exception => e
         @log.info "Error processing cadvisor record Exception: #{e.class} Message: #{e.message}"
         ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
-        return []
+        return [] #return empty array if we ran into any errors
       end
     end
 

@@ -61,7 +61,7 @@ class KubeletUtils
             end
 
             podContainers = []
-            @log.info "items[spec][containers]: #{items["spec"]["containers"]}"
+            # @log.info "items[spec][containers]: #{items["spec"]["containers"]}"
             if items["spec"].key?("containers") && !items["spec"]["containers"].empty?
               podContainers = podContainers + items["spec"]["containers"]
             end
@@ -88,10 +88,10 @@ class KubeletUtils
                   #   cpuLimitInMilliCores = cpuLimitInNanoCores / 1000000
 
                   # Get cpu limit in nanocores
-                  containerCpuLimitHash[key] = KubernetesApiClient.getMetricNumericValue("cpu", cpuLimit)
+                  containerCpuLimitHash[key] = !cpuLimit.nil? ? KubernetesApiClient.getMetricNumericValue("cpu", cpuLimit) : 0
 
                   # Get memory limit in bytes
-                  containerMemoryLimitHash[key] = KubernetesApiClient.getMetricNumericValue("memory", memoryLimit)
+                  containerMemoryLimitHash[key] = !memoryLimit.nil? ? KubernetesApiClient.getMetricNumericValue("memory", memoryLimit) : 0
                 end
               end
             end

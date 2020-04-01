@@ -154,7 +154,7 @@ class MdmMetricsGenerator
       return records
     end
 
-    def getContainerResourceUtilMetricRecords(metricName, percentageMetricValue, dims)
+    def getContainerResourceUtilMetricRecords(record, metricName, percentageMetricValue, dims)
       records = []
       begin
         dimElements = dims.split("~~")
@@ -170,14 +170,12 @@ class MdmMetricsGenerator
 
         resourceUtilRecord = MdmAlertTemplates::Container_resource_utilization_template % {
           timestamp: record["DataItems"][0]["Timestamp"],
-          metricName: @@metric_name_metric_percentage_name_hash[metric_name],
+          metricName: @@metric_name_metric_percentage_name_hash[metricName],
           containerNameDimValue: containerName,
           podNameDimValue: podName,
           controllerNameDimValue: controllerName,
           namespaceDimValue: podNamespace,
-          metricminvalue: metric_value,
-          metricmaxvalue: metric_value,
-          metricsumvalue: metric_value,
+          containerResourceUtilizationPercentage: percentageMetricValue,
         }
         records.push(JSON.parse(resourceUtilRecord))
       rescue => errorStr

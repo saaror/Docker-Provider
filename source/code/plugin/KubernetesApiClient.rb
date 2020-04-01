@@ -368,7 +368,7 @@ class KubernetesApiClient
       return containerLogs
     end
 
-    def getPodUid(podMetadata, podNameSpace)
+    def getPodUid(podNameSpace, podMetadata)
       podUid = nil
       begin
         if podNameSpace.eql?("kube-system") && !podMetadata.key?("ownerReferences")

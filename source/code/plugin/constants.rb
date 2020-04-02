@@ -21,4 +21,6 @@ class Constants
     OBJECT_NAME_K8S_NODE = "K8SNode"
     CPU_USAGE_NANO_CORES = "cpuUsageNanoCores"
     CPU_USAGE_MILLI_CORES = "cpuUsageMillicores"
+    CONTROLLER_KIND_JOB = "job"
+    JOB_TERMINATION_REASON_COMPLETED = "completed"
 end

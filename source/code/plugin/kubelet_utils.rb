@@ -73,8 +73,9 @@ class KubeletUtils
             if !podContainers.empty?
               podContainers.each do |container|
                 @log.info "in podcontainers for loop..."
+                # containerName = "No name"
                 containerName = container["name"]
-                if !container["resources"].nil? && !container["resources"]["limits"].nil?
+                if !container["resources"].nil? && !container["resources"]["limits"].nil? && !containerName.nil?
                   cpuLimit = container["resources"]["limits"]["cpu"]
                   memoryLimit = container["resources"]["limits"]["memory"]
                   key = clusterId + "/" + podUid + "/" + containerName

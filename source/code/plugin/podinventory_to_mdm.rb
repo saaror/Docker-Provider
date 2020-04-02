@@ -187,12 +187,12 @@ class Inventory2MdmConvertor
   def process_record_for_oom_killed_metric(podControllerNameDimValue, podNamespaceDimValue, finishedTime)
     begin
       @log.info "in process_record_for_oom_killed_metric..."
-      if podControllerNameDimValue.nil? || podControllerNameDimValue.empty?
-        podControllerNameDimValue = "No Controller"
-      end
 
       # Send OOM Killed state for container only if it terminated in the last 5 minutes, we dont want to keep sending this count forever
       if is_container_terminated_recently(finishedTime)
+        if podControllerNameDimValue.nil? || podControllerNameDimValue.empty?
+          podControllerNameDimValue = "No Controller"
+        end
         MdmMetricsGenerator.generateOOMKilledPodMetrics(podControllerNameDimValue,
                                                         podNamespaceDimValue)
       end
@@ -205,12 +205,12 @@ class Inventory2MdmConvertor
   def process_record_for_container_restarts_metric(podControllerNameDimValue, podNamespaceDimValue, finishedTime)
     begin
       @log.info "in process_record_for_container_restarts_metric..."
-      if podControllerNameDimValue.nil? || podControllerNameDimValue.empty?
-        podControllerNameDimValue = "No Controller"
-      end
 
       # Send OOM Killed state for container only if it terminated in the last 5 minutes, we dont want to keep sending this count forever
       if is_container_terminated_recently(finishedTime)
+        if podControllerNameDimValue.nil? || podControllerNameDimValue.empty?
+          podControllerNameDimValue = "No Controller"
+        end
         MdmMetricsGenerator.generateContainerRestartsMetrics(podControllerNameDimValue,
                                                              podNamespaceDimValue)
       end

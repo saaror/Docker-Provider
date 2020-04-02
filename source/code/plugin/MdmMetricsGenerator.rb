@@ -15,6 +15,7 @@ class MdmMetricsGenerator
   # @@container_restart_count_metric_name = "ContainerRestartCount"
   @oom_killed_container_count_hash = {}
   @container_restart_count_hash = {}
+  @stale_job_count_hash = {}
   @pod_ready_hash = {}
   @pod_not_ready_hash = {}
   @pod_ready_percentage_hash = {}
@@ -142,6 +143,9 @@ class MdmMetricsGenerator
         @log.info "@container_restart_count_hash: #{@container_restart_count_hash}"
         records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
         @container_restart_count_hash = {}
+        @log.info "@stale_job_count_hash: #{@stale_job_count_hash}"
+        records = appendPodMetrics(records, Constants::MDM_STALE_COMPLETED_JOB_COUNT, @stale_job_count_hash, batch_time)
+        @stale_job_count_hash = {}
         # Computer the percentage here, because we need to do this after all chunks have been processed.
         populatePodReadyPercentageHash
         @log.info "@pod_ready_percentage_hash: #{@pod_ready_percentage_hash}"
@@ -257,8 +261,16 @@ class MdmMetricsGenerator
       end
     end
 
-    def generateStaleJobCountMetrics(podControllerNameDimValue,
-      podNamespaceDimValue)
+    def generateStaleJobCountMetrics(podControllerName, podNamespace)
+      begin
+        dim_key = [podControllerName, podNamespace].join("~~")
+        @log.info "adding dimension key to stale job count hash..."
+        @stale_job_count_hash[dim_key] = @stale_job_count_hash.key?(dim_key) ? @stale_job_count_hash[dim_key] + 1 : 1
+      rescue => errorStr
+        @log.warn "Error in generateStaleJobCountMetrics: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+    end
 
     # def generatePodMetrics(metricName, podControllerName, podNamespace)
     #   begin

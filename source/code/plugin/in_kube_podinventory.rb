@@ -437,6 +437,10 @@ module Fluent
                 if !containerStatus[containerStatus.keys[0]]["reason"].nil? && !containerStatus[containerStatus.keys[0]]["reason"].empty?
                   record["ContainerStatusReason"] = containerStatus[containerStatus.keys[0]]["reason"]
                 end
+                # Process the record to see if job was completed 6 hours ago. If so, send metric to mdm
+                if !record["ControllerKind"].nil? && record["ControllerKind"].downcase == Constants::CONTROLLER_KIND_JOB
+                  @inventoryToMdmConvertor.process_record_for_terminated_job_metric(record["ControllerName"], record["Namespace"], containerStatus)
+                end
               end
 
               # Record the last state of the container. This may have information on why a container was killed.

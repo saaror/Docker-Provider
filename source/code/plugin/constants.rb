@@ -22,5 +22,7 @@ class Constants
     CPU_USAGE_NANO_CORES = "cpuUsageNanoCores"
     CPU_USAGE_MILLI_CORES = "cpuUsageMillicores"
     CONTROLLER_KIND_JOB = "job"
-    JOB_TERMINATION_REASON_COMPLETED = "completed"
+    CONTAINER_TERMINATION_REASON_COMPLETED = "completed"
+    CONTAINER_STATE_TERMINATED = "terminated"
+    STALE_JOB_TIME_IN_MINUTES = 360
 end

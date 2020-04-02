@@ -257,6 +257,9 @@ class MdmMetricsGenerator
       end
     end
 
+    def generateStaleJobCountMetrics(podControllerNameDimValue,
+      podNamespaceDimValue)
+
     # def generatePodMetrics(metricName, podControllerName, podNamespace)
     #   begin
     #     @log.info "in generatePodMetrics..."

@@ -238,9 +238,37 @@ class Inventory2MdmConvertor
         end
       end
       MdmMetricsGenerator.generatePodReadyMetrics(podControllerNameDimValue,
-        podNamespaceDimValue, podReadyCondition)
+                                                  podNamespaceDimValue, podReadyCondition)
     rescue => errorStr
       @log.warn("Exception in process_record_for_pods_ready_metric: #{errorStr}")
+      ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+    end
+  end
+
+  # Process the record to see if job was completed 6 hours ago. If so, send metric to mdm
+  def process_record_for_terminated_job_metric(podControllerNameDimValue, podNamespaceDimValue, containerStatus)
+    begin
+      @log.info "in process_record_for_terminated_job_metric..."
+      if podControllerNameDimValue.nil? || podControllerNameDimValue.empty?
+        podControllerNameDimValue = "No Controller"
+      end
+      if !containerStatus.keys[0].nil? && containerStatus.keys[0].downcase == Constants::CONTAINER_STATE_TERMINATED
+        containerTerminatedReason = containerStatus["terminated"]["reason"]
+        if !containerTerminatedReason.nil? && containerTerminatedReason.downcase == Constants::CONTAINER_TERMINATION_REASON_COMPLETED
+          containerFinishedTime = containerStatus["terminated"]["finishedAt"]
+          if !containerFinishedTime.nil? && !containerFinishedTime.empty?
+            finishedTimeParsed = Time.parse(containerFinishedTime)
+            # Check to see if job was completed 6 hours ago/STALE_JOB_TIME_IN_MINUTES
+            if ((Time.now - finishedTimeParsed) / 60) > Constants::STALE_JOB_TIME_IN_MINUTES
+              # return true
+              MdmMetricsGenerator.generateStaleJobCountMetrics(podControllerNameDimValue,
+                podNamespaceDimValue)
+            end
+          end
+        end
+      end
+    rescue => errorStr
+      @log.warn("Exception in process_record_for_terminated_job: #{errorStr}")
       ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
     end
   end

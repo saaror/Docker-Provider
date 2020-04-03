@@ -53,7 +53,6 @@ const UserAssignedClientId = os.Getenv("USER_ASSIGNED_IDENTITY_CLIENT_ID")
 // 	  const      @data_hash = {}
 // 	  const      @parsed_token_uri = nil
 // 	  const      @http_client = nil
-// 	  const     @token_expiry_time = Time.now
 // 	  const     @last_post_attempt_time = Time.now
 // 	  const     @first_post_attempt_made = false
 const CanSendDataToMdm = true
@@ -89,6 +88,9 @@ const useMsi = false
 
 var (
 CachedAccessToken string
+GetAccessTokenBackoffExpiry = time.Now()
+TokenExpiryTime = time.Now()
+
 )
 
 var (
@@ -135,7 +137,70 @@ func createLogger() *log.Logger {
 
 // Method to get access token
 func GetAccessToken() {
+	if (time.Now() > GetAccessTokenBackoffExpiry) {
+	httpAccessToken = nil
+	retries = 0
+	begin
+	  if CachedAccessToken == nil ||
+	  CachedAccessToken == "" || 
+	  (time.Now() + 5 * time.Minute > TokenExpiryTime) {
+	  // Refresh token 5 minutes from expiration
+		Log("Refreshing access token for mdm go plugin..")
 
+		if (!!@useMsi)
+		  @log.info "Using msi to get the token to post MDM data"
+		  ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-MSI", {})
+		  @log.info "Opening TCP connection"
+		  http_access_token = Net::HTTP.start(@parsed_token_uri.host, @parsed_token_uri.port, :use_ssl => false)
+		  # http_access_token.use_ssl = false
+		  token_request = Net::HTTP::Get.new(@parsed_token_uri.request_uri)
+		  token_request["Metadata"] = true
+		else
+		  @log.info "Using SP to get the token to post MDM data"
+		  ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-SP", {})
+		  @log.info "Opening TCP connection"
+		  http_access_token = Net::HTTP.start(@parsed_token_uri.host, @parsed_token_uri.port, :use_ssl => true)
+		  # http_access_token.use_ssl = true
+		  token_request = Net::HTTP::Post.new(@parsed_token_uri.request_uri)
+		  token_request.set_form_data(
+			{
+			  "grant_type" => @@grant_type,
+			  "client_id" => @data_hash["aadClientId"],
+			  "client_secret" => @data_hash["aadClientSecret"],
+			  "resource" => @@token_resource_url,
+			}
+		  )
+		end
+
+		@log.info "making request to get token.."
+		token_response = http_access_token.request(token_request)
+		# Handle the case where the response is not 200
+		parsed_json = JSON.parse(token_response.body)
+		@token_expiry_time = Time.now + @@tokenRefreshBackoffInterval * 60 # set the expiry time to be ~thirty minutes from current time
+		@cached_access_token = parsed_json["access_token"]
+	  @log.info "Successfully got access token"
+		}
+	rescue => err
+	  @log.info "Exception in get_access_token: #{err}"
+	  if (retries < 2)
+		retries += 1
+		@log.info "Retrying request to get token - retry number: #{retries}"
+		sleep(retries)
+		retry
+	  else
+	  @get_access_token_backoff_expiry = Time.now + @@tokenRefreshBackoffInterval * 60
+	  @log.info "@get_access_token_backoff_expiry set to #{@get_access_token_backoff_expiry}"
+	  ApplicationInsightsUtility.sendExceptionTelemetry(err, {"FeatureArea" => "MDM"})
+	  end
+	ensure
+	  if http_access_token
+		@log.info "Closing http connection"
+		http_access_token.finish
+	  end
+	end
+		}
+  return CachedAccessToken
+end
 }
 
 
@@ -194,9 +259,9 @@ func InitializeMdmPlugin(pluginConfPath string, agentVersion string) {
 	spClientId := result["aadClientId"]
 	spClientSecret := result["aadClientSecret"]
 
-	if (spClientId != nil &&
+	if spClientId != nil &&
 		spClientId != "" && 
-		strings.ToLower(spClientId) != "msi") {
+		strings.ToLower(spClientId) != "msi" {
 	  useMsi = false
 	//   aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
 	  aadTokenUrl = strings.Replace(AadTokenUrlTemplate, "tenant_id", result["tenantId"], -1)

@@ -144,7 +144,7 @@ module Fluent
             parsed_json = JSON.parse(token_response.body)
             @token_expiry_time = Time.now + @@tokenRefreshBackoffInterval * 60 # set the expiry time to be ~thirty minutes from current time
             @cached_access_token = parsed_json["access_token"]
-          @log.info "Successfully got access token"
+            @log.info "Successfully got access token"
           end
         rescue => err
           @log.info "Exception in get_access_token: #{err}"
@@ -154,9 +154,9 @@ module Fluent
             sleep(retries)
             retry
           else
-          @get_access_token_backoff_expiry = Time.now + @@tokenRefreshBackoffInterval * 60
-          @log.info "@get_access_token_backoff_expiry set to #{@get_access_token_backoff_expiry}"
-          ApplicationInsightsUtility.sendExceptionTelemetry(err, {"FeatureArea" => "MDM"})
+            @get_access_token_backoff_expiry = Time.now + @@tokenRefreshBackoffInterval * 60
+            @log.info "@get_access_token_backoff_expiry set to #{@get_access_token_backoff_expiry}"
+            ApplicationInsightsUtility.sendExceptionTelemetry(err, {"FeatureArea" => "MDM"})
           end
         ensure
           if http_access_token
@@ -230,7 +230,7 @@ module Fluent
         request["Authorization"] = "Bearer #{access_token}"
 
         request.body = post_body.join("\n")
-        @log.info "REQUEST BODY SIZE #{request.body.bytesize/1024}"
+        @log.info "REQUEST BODY SIZE #{request.body.bytesize / 1024}"
         response = @http_client.request(request)
         response.value # this throws for non 200 HTTP response code
         @log.info "HTTP Post Response Code : #{response.code}"

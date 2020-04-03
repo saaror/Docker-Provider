@@ -34,16 +34,16 @@ import (
 //env variable which has ResourceName for NON-AKS
 // const ResourceNameEnv = "ACS_RESOURCE_NAME"
 
-// const TokenResourceUrl = "https://monitoring.azure.com/"
+const TokenResourceUrl = "https://monitoring.azure.com/"
 // const GrantType = "client_credentials"
 const AzureJsonPath = "/etc/kubernetes/host/azure.json"
 
-// const PostRequestUrlTemplate = "https://%{aks_region}.monitoring.azure.com%{aks_resource_id}/metrics"
-// const AadTokenUrlTemplate = "https://login.microsoftonline.com/%{tenant_id}/oauth2/token"
+const PostRequestUrlTemplate = "https://%{aks_region}.monitoring.azure.com%{aks_resource_id}/metrics"
+const AadTokenUrlTemplate = "https://login.microsoftonline.com/%{tenant_id}/oauth2/token"
 
-//       # msiEndpoint is the well known endpoint for getting MSI authentications tokens
-// 	  const      @@msi_endpoint_template = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&client_id=%{user_assigned_client_id}&resource=%{resource}"
-// 	  const     @@userAssignedClientId = ENV["USER_ASSIGNED_IDENTITY_CLIENT_ID"]
+// msiEndpoint is the well known endpoint for getting MSI authentications tokens
+const MsiEndpointTemplate = "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&client_id=%{user_assigned_client_id}&resource=%{resource}"
+const UserAssignedClientId = os.Getenv("USER_ASSIGNED_IDENTITY_CLIENT_ID")
 
 // 	  const      @@plugin_name = "AKSCustomMetricsMDM"
 // 	  const      @@record_batch_size = 2600
@@ -54,14 +54,13 @@ const AzureJsonPath = "/etc/kubernetes/host/azure.json"
 // 	  const      @parsed_token_uri = nil
 // 	  const      @http_client = nil
 // 	  const     @token_expiry_time = Time.now
-// 	  const     @cached_access_token = String.new
 // 	  const     @last_post_attempt_time = Time.now
 // 	  const     @first_post_attempt_made = false
 const CanSendDataToMdm = true
 
 // 	  const      @last_telemetry_sent_time = nil
 //       # Setting useMsi to false by default
-// 	  const     @useMsi = false
+const useMsi = false
 
 // 	  const     @get_access_token_backoff_expiry = Time.now
 
@@ -87,6 +86,10 @@ const CanSendDataToMdm = true
 // 	// EventHashUpdateMutex read and write mutex access to the event hash
 // 	EventHashUpdateMutex = &sync.Mutex{}
 // )
+
+var (
+CachedAccessToken string
+)
 
 var (
 	// FLBLogger stream
@@ -130,6 +133,12 @@ func createLogger() *log.Logger {
 	return logger
 }
 
+// Method to get access token
+func GetAccessToken() {
+
+}
+
+
 // InitializeMdmPlugin reads and populates plugin configuration
 func InitializeMdmPlugin(pluginConfPath string, agentVersion string) {
 	//Read azure json file to get the Service Principal value
@@ -165,5 +174,40 @@ func InitializeMdmPlugin(pluginConfPath string, agentVersion string) {
 		CanSendDataToMdm = false
 	} else {
 		aksRegion = strings.Replace(aksRegion, " ", "", -1)
+	}
+
+	if CanSendDataToMdm {
+	Log("MDM Metrics supported in", aksRegion, "region")
+
+	postRequestUrl := strings.Replace(PostRequestUrlTemplate, "aks_region", aksRegion, -1)
+	postRequestUrl = strings.Replace(PostRequestUrlTemplate, "aks_resource_id", aksResourceID, -1)
+
+	// @post_request_uri = URI.parse(@@post_request_url)
+	// @http_client = Net::HTTP.new(@post_request_uri.host, @post_request_uri.port)
+	// @http_client.use_ssl = true
+	// @log.info "POST Request url: #{@@post_request_url}"
+
+	// Send telemetry to AppInsights resource
+	SendEvent("AKSCustomMetricsMDMGoPluginStart", map[])
+
+	// Check to see if SP exists, if it does use SP. Else, use msi
+	spClientId := result["aadClientId"]
+	spClientSecret := result["aadClientSecret"]
+
+	if (spClientId != nil &&
+		spClientId != "" && 
+		strings.ToLower(spClientId) != "msi") {
+	  useMsi = false
+	//   aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
+	  aadTokenUrl = strings.Replace(AadTokenUrlTemplate, "tenant_id", result["tenantId"], -1)
+	//   @parsed_token_uri = URI.parse(aad_token_url)
+	} else {
+	  useMsi = true
+	  msiEndpoint = strings.Replace(MsiEndpointTemplate, "user_assigned_client_id", UserAssignedClientId, -1)
+	  msiEndpoint = strings.Replace(MsiEndpointTemplate, "token_resource_url", TokenResourceUrl , -1)
+	//   @parsed_token_uri = URI.parse(msi_endpoint)
+	}
+
+	CachedAccessToken = GetAccessToken
 	}
 }

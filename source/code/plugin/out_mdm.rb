@@ -172,7 +172,7 @@ module Fluent
       accessTokenFile = "/var/opt/microsoft/omsagent/MDMAccessToken"
       begin
         tokenFile = File.open(accessTokenFile, "w")
-        # using the LOCK_NB - no block option so that this method doesnt make and blocking call and wait for the lock indefinitely.
+        # using the LOCK_NB - no block option so that this method doesnt make a blocking call and wait for the lock indefinitely.
         # Instead, if we fail to get the lock, we sleep and retry again.
         # flock(File::LOCK_EX | File::LOCK_NB) - Returns false or 0 if lock already exists on the file.
         if (not tokenFile.flock(File::LOCK_EX | File::LOCK_NB))
@@ -180,6 +180,10 @@ module Fluent
           sleep 10
           if (not tokenFile.flock(File::LOCK_EX | File::LOCK_NB))
             @log.debug "Another process has a lock on the file, unable to access file to update MDM token."
+          else
+            # Write access token to file and unlock
+            tokenFile.write(@cached_access_token)
+            tokenFile.flock(File::LOCK_UN)
           end
         else
           # Write access token to file and unlock

@@ -165,6 +165,8 @@ module Fluent
           end
         end
       end
+      # Writing cached access token to the file to be used by mdm go plugin
+      write_cached_access_token
       @cached_access_token
     end
 
@@ -176,6 +178,36 @@ module Fluent
       rescue => e
         @log.debug "Error:'#{e}'"
         ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
+      end
+    end
+
+    def write_cached_access_token
+      accessTokenFile = "/var/opt/microsoft/omsagent/MDMAccessToken"
+      begin
+        tokenFile = File.open(accessTokenFile, "w")
+        # using the LOCK_NB - no block option so that this method doesnt make a blocking call and wait for the lock indefinitely.
+        # Instead, if we fail to get the lock, we sleep and retry again.
+        # flock(File::LOCK_EX | File::LOCK_NB) - Returns false or 0 if lock already exists on the file.
+        if (not tokenFile.flock(File::LOCK_EX | File::LOCK_NB))
+          @log.debug "Another process has a lock on the file, sleeping to retry again."
+          sleep 10
+          if (not tokenFile.flock(File::LOCK_EX | File::LOCK_NB))
+            @log.debug "Another process has a lock on the file, unable to access file to update MDM token."
+          else
+            # Write access token to file and unlock
+            @log.debug "Successfully locked file, updating access token"
+            tokenFile.write(@cached_access_token)
+            tokenFile.flock(File::LOCK_UN)
+          end
+        else
+          # Write access token to file and unlock
+          @log.debug "Successfully locked file, updating access token"
+          tokenFile.write(@cached_access_token)
+          tokenFile.flock(File::LOCK_UN)
+        end
+      rescue => errorStr
+        @log.debug "Error in write_cached_access_token:'#{errorStr}'"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
     end
 

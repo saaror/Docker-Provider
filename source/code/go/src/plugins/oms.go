@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fluent/fluent-bit-go/output"
+	"github.com/gofrs/flock"
 	"github.com/google/uuid"
 
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -97,7 +98,7 @@ var (
 	//KubeMonAgentEvents skip first flush
 	skipKubeMonEventsFlush bool
 	// enrich container logs (when true this will add the fields - timeofcommand, containername & containerimage)
-	enrichContainerLogs bool		
+	enrichContainerLogs bool
 	// container runtime engine configured on the kubelet
 	containerRuntime string
 )
@@ -141,8 +142,8 @@ var (
 
 var (
 	dockerCimprovVersion = "9.0.0.0"
-	agentName = "ContainerAgent"
-	userAgent = ""
+	agentName            = "ContainerAgent"
+	userAgent            = ""
 )
 
 // DataItem represents the object corresponding to the json that is sent by fluentbit tail plugin
@@ -219,6 +220,30 @@ const (
 	ConfigError KubeMonAgentEventType = iota
 	PromScrapingError
 )
+
+func testLocker() {
+	fileLock := flock.New("/var/opt/microsoft/omsagent/MDMAccessToken")
+
+	locked, err := fileLock.TryLock()
+
+	if err != nil {
+		Log("Error while trying to lock access token file:", err)
+	}
+
+	if locked {
+		Log("Successfully locked file")
+		content, err := ioutil.ReadFile("/var/opt/microsoft/omsagent/MDMAccessToken")
+		if err != nil {
+			Log(err.Error())
+		}
+
+		// Convert []byte to string and print to screen
+		text := string(content)
+		Log(text)
+		time.Sleep(10 * time.Minute)
+		fileLock.Unlock()
+	}
+}
 
 func createLogger() *log.Logger {
 	var logfile *os.File
@@ -525,7 +550,7 @@ func flushKubeMonAgentEventRecords() {
 				} else {
 					req, _ := http.NewRequest("POST", OMSEndpoint, bytes.NewBuffer(marshalled))
 					req.Header.Set("Content-Type", "application/json")
-					req.Header.Set("User-Agent", userAgent )
+					req.Header.Set("User-Agent", userAgent)
 					reqId := uuid.New().String()
 					req.Header.Set("X-Request-ID", reqId)
 					//expensive to do string len for every request, so use a flag
@@ -671,7 +696,7 @@ func PostTelegrafMetricsToLA(telegrafRecords []map[interface{}]interface{}) int 
 
 	//set headers
 	req.Header.Set("x-ms-date", time.Now().Format(time.RFC3339))
-	req.Header.Set("User-Agent", userAgent )
+	req.Header.Set("User-Agent", userAgent)
 	reqId := uuid.New().String()
 	req.Header.Set("X-Request-ID", reqId)
 
@@ -756,7 +781,7 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 		stringMap := make(map[string]string)
 
 		logEntry := ToString(record["log"])
-		logEntryTimeStamp := ToString(record["time"])			
+		logEntryTimeStamp := ToString(record["time"])
 		stringMap["LogEntry"] = logEntry
 		stringMap["LogEntrySource"] = logEntrySource
 		stringMap["LogEntryTimeStamp"] = logEntryTimeStamp
@@ -833,7 +858,7 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		req, _ := http.NewRequest("POST", OMSEndpoint, bytes.NewBuffer(marshalled))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", userAgent )
+		req.Header.Set("User-Agent", userAgent)
 		reqId := uuid.New().String()
 		req.Header.Set("X-Request-ID", reqId)
 		//expensive to do string len for every request, so use a flag
@@ -936,13 +961,13 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 	skipKubeMonEventsFlush = true
 
 	enrichContainerLogsSetting := os.Getenv("AZMON_CLUSTER_CONTAINER_LOG_ENRICH")
-		if (strings.Compare(enrichContainerLogsSetting, "true") == 0) {
-			enrichContainerLogs = true
-			Log("ContainerLogEnrichment=true \n")
-		} else {
-			enrichContainerLogs = false
-			Log("ContainerLogEnrichment=false \n")
-		}
+	if strings.Compare(enrichContainerLogsSetting, "true") == 0 {
+		enrichContainerLogs = true
+		Log("ContainerLogEnrichment=true \n")
+	} else {
+		enrichContainerLogs = false
+		Log("ContainerLogEnrichment=false \n")
+	}
 
 	pluginConfig, err := ReadConfiguration(pluginConfPath)
 	if err != nil {
@@ -984,13 +1009,12 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 		Log("ResourceID=%s", ResourceID)
 		Log("ResourceName=%s", ResourceName)
 	}
-	
-	// log runtime info for debug purpose
-	containerRuntime = os.Getenv(ContainerRuntimeEnv)		
-	Log("Container Runtime engine %s", containerRuntime)	
-	
 
-	//set useragent to be used by ingestion 
+	// log runtime info for debug purpose
+	containerRuntime = os.Getenv(ContainerRuntimeEnv)
+	Log("Container Runtime engine %s", containerRuntime)
+
+	//set useragent to be used by ingestion
 	docker_cimprov_version := strings.TrimSpace(os.Getenv("DOCKER_CIMPROV_VERSION"))
 	if len(docker_cimprov_version) > 0 {
 		dockerCimprovVersion = docker_cimprov_version
@@ -1052,7 +1076,7 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 	PluginConfiguration = pluginConfig
 
 	CreateHTTPClient()
-
+	testLocker()
 	if strings.Compare(strings.ToLower(os.Getenv("CONTROLLER_TYPE")), "daemonset") == 0 {
 		populateExcludedStdoutNamespaces()
 		populateExcludedStderrNamespaces()

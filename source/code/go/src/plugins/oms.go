@@ -222,19 +222,29 @@ const (
 
 func createLogger() *log.Logger {
 	var logfile *os.File
-	path := "/var/opt/microsoft/docker-cimprov/log/fluent-bit-out-oms-runtime.log"
-	if _, err := os.Stat(path); err == nil {
+
+	osType := os.Getenv("OS_TYPE")
+
+	var logPath string
+
+	if strings.Compare(strings.ToLower(osType), "windows") != 0 {
+		logPath = "/var/opt/microsoft/docker-cimprov/log/fluent-bit-out-oms-runtime.log"
+	} else {
+		logPath = "/opt/microsoft/winaks/log"
+	}
+
+	if _, err := os.Stat(logPath); err == nil {
 		fmt.Printf("File Exists. Opening file in append mode...\n")
-		logfile, err = os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
+		logfile, err = os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			SendException(err.Error())
 			fmt.Printf(err.Error())
 		}
 	}
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if _, err := os.Stat(logPath); os.IsNotExist(err) {
 		fmt.Printf("File Doesnt Exist. Creating file...\n")
-		logfile, err = os.Create(path)
+		logfile, err = os.Create(logPath)
 		if err != nil {
 			SendException(err.Error())
 			fmt.Printf(err.Error())

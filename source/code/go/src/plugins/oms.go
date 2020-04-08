@@ -97,7 +97,7 @@ var (
 	//KubeMonAgentEvents skip first flush
 	skipKubeMonEventsFlush bool
 	// enrich container logs (when true this will add the fields - timeofcommand, containername & containerimage)
-	enrichContainerLogs bool		
+	enrichContainerLogs bool
 	// container runtime engine configured on the kubelet
 	containerRuntime string
 )
@@ -141,8 +141,8 @@ var (
 
 var (
 	dockerCimprovVersion = "9.0.0.0"
-	agentName = "ContainerAgent"
-	userAgent = ""
+	agentName            = "ContainerAgent"
+	userAgent            = ""
 )
 
 // DataItem represents the object corresponding to the json that is sent by fluentbit tail plugin
@@ -525,7 +525,7 @@ func flushKubeMonAgentEventRecords() {
 				} else {
 					req, _ := http.NewRequest("POST", OMSEndpoint, bytes.NewBuffer(marshalled))
 					req.Header.Set("Content-Type", "application/json")
-					req.Header.Set("User-Agent", userAgent )
+					req.Header.Set("User-Agent", userAgent)
 					reqId := uuid.New().String()
 					req.Header.Set("X-Request-ID", reqId)
 					//expensive to do string len for every request, so use a flag
@@ -616,7 +616,7 @@ func translateTelegrafMetrics(m map[interface{}]interface{}) ([]*laTelegrafMetri
 	return laMetrics, nil
 }
 
-//send metrics from Telegraf to LA. 1) Translate telegraf timeseries to LA metric(s) 2) Send it to LA as 'InsightsMetrics' fixed type
+// send metrics from Telegraf to LA. 1) Translate telegraf timeseries to LA metric(s) 2) Send it to LA as 'InsightsMetrics' fixed type
 func PostTelegrafMetricsToLA(telegrafRecords []map[interface{}]interface{}) int {
 	var laMetrics []*laTelegrafMetric
 
@@ -671,9 +671,9 @@ func PostTelegrafMetricsToLA(telegrafRecords []map[interface{}]interface{}) int 
 
 	//set headers
 	req.Header.Set("x-ms-date", time.Now().Format(time.RFC3339))
-	req.Header.Set("User-Agent", userAgent )
-	reqId := uuid.New().String()
-	req.Header.Set("X-Request-ID", reqId)
+	req.Header.Set("User-Agent", userAgent)
+	reqID := uuid.New().String()
+	req.Header.Set("X-Request-ID", reqID)
 
 	//expensive to do string len for every request, so use a flag
 	if ResourceCentric == true {
@@ -693,7 +693,7 @@ func PostTelegrafMetricsToLA(telegrafRecords []map[interface{}]interface{}) int 
 
 	if resp == nil || resp.StatusCode != 200 {
 		if resp != nil {
-			Log("PostTelegrafMetricsToLA::Error:(retriable) RequestID %s Response Status %v Status Code %v", reqId, resp.Status, resp.StatusCode)
+			Log("PostTelegrafMetricsToLA::Error:(retriable) RequestID %s Response Status %v Status Code %v", reqID, resp.Status, resp.StatusCode)
 		}
 		if resp != nil && resp.StatusCode == 429 {
 			UpdateNumTelegrafMetricsSentTelemetry(0, 1, 1)
@@ -726,37 +726,37 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 	var maxLatency float64
 	var maxLatencyContainer string
 
-	// imageIDMap := make(map[string]string)
-	// nameIDMap := make(map[string]string)
+	imageIDMap := make(map[string]string)
+	nameIDMap := make(map[string]string)
 
-	// DataUpdateMutex.Lock()
+	DataUpdateMutex.Lock()
 
-	// for k, v := range ImageIDMap {
-	// 	imageIDMap[k] = v
-	// }
-	// for k, v := range NameIDMap {
-	// 	nameIDMap[k] = v
-	// }
-	// DataUpdateMutex.Unlock()
+	for k, v := range ImageIDMap {
+		imageIDMap[k] = v
+	}
+	for k, v := range NameIDMap {
+		nameIDMap[k] = v
+	}
+	DataUpdateMutex.Unlock()
 
 	for _, record := range tailPluginRecords {
 		containerID, k8sNamespace, _ := GetContainerIDK8sNamespacePodNameFromFileName(ToString(record["filepath"]))
 		logEntrySource := ToString(record["stream"])
 
-		// if strings.EqualFold(logEntrySource, "stdout") {
-		// 	if containerID == "" || containsKey(StdoutIgnoreNsSet, k8sNamespace) {
-		// 		continue
-		// 	}
-		// } else if strings.EqualFold(logEntrySource, "stderr") {
-		// 	if containerID == "" || containsKey(StderrIgnoreNsSet, k8sNamespace) {
-		// 		continue
-		// 	}
-		// }
+		if strings.EqualFold(logEntrySource, "stdout") {
+			if containerID == "" || containsKey(StdoutIgnoreNsSet, k8sNamespace) {
+				continue
+			}
+		} else if strings.EqualFold(logEntrySource, "stderr") {
+			if containerID == "" || containsKey(StderrIgnoreNsSet, k8sNamespace) {
+				continue
+			}
+		}
 
 		stringMap := make(map[string]string)
 
 		logEntry := ToString(record["log"])
-		logEntryTimeStamp := ToString(record["time"])			
+		logEntryTimeStamp := ToString(record["time"])
 		stringMap["LogEntry"] = logEntry
 		stringMap["LogEntrySource"] = logEntrySource
 		stringMap["LogEntryTimeStamp"] = logEntryTimeStamp
@@ -765,16 +765,16 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		// if val, ok := imageIDMap[containerID]; ok {
 		// 	stringMap["Image"] = val
-			stringMap["Image"] = ""
+		stringMap["Image"] = ""
 		// }
 
 		// if val, ok := nameIDMap[containerID]; ok {
 		// 	stringMap["Name"] = val
-			stringMap["Name"] = ""
+		stringMap["Name"] = ""
 		// }
 
 		var dataItem DataItem
-		// if enrichContainerLogs == true {
+		if enrichContainerLogs == true {
 			dataItem = DataItem{
 				ID:                    stringMap["Id"],
 				LogEntry:              stringMap["LogEntry"],
@@ -786,19 +786,19 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 				Image:                 stringMap["Image"],
 				Name:                  stringMap["Name"],
 			}
-		// } else { // dont collect timeofcommand field as its part of container log enrichment [But currently we dont know the ux behavior , so waiting for ux fix (LA ux)]
-		// 	dataItem = DataItem{
-		// 		ID:                    stringMap["Id"],
-		// 		LogEntry:              stringMap["LogEntry"],
-		// 		LogEntrySource:        stringMap["LogEntrySource"],
-		// 		LogEntryTimeStamp:     stringMap["LogEntryTimeStamp"],
-		// 		LogEntryTimeOfCommand: start.Format(time.RFC3339),
-		// 		SourceSystem:          stringMap["SourceSystem"],
-		// 		Computer:              Computer,
-		// 		Image:                 stringMap["Image"],
-		// 		Name:                  stringMap["Name"],
-		// 	}
-		// }
+		} else { // dont collect timeofcommand field as its part of container log enrichment [But currently we dont know the ux behavior , so waiting for ux fix (LA ux)]
+			dataItem = DataItem{
+				ID:                    stringMap["Id"],
+				LogEntry:              stringMap["LogEntry"],
+				LogEntrySource:        stringMap["LogEntrySource"],
+				LogEntryTimeStamp:     stringMap["LogEntryTimeStamp"],
+				LogEntryTimeOfCommand: start.Format(time.RFC3339),
+				SourceSystem:          stringMap["SourceSystem"],
+				Computer:              Computer,
+				Image:                 stringMap["Image"],
+				Name:                  stringMap["Name"],
+			}
+		}
 
 		FlushedRecordsSize += float64(len(stringMap["LogEntry"]))
 
@@ -839,9 +839,9 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		req, _ := http.NewRequest("POST", OMSEndpoint, bytes.NewBuffer(marshalled))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", userAgent )
-		reqId := uuid.New().String()
-		req.Header.Set("X-Request-ID", reqId)
+		req.Header.Set("User-Agent", userAgent)
+		reqID := uuid.New().String()
+		req.Header.Set("X-Request-ID", reqID)
 		//expensive to do string len for every request, so use a flag
 		if ResourceCentric == true {
 			req.Header.Set("x-ms-AzureResourceId", ResourceID)
@@ -862,7 +862,7 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		if resp == nil || resp.StatusCode != 200 {
 			if resp != nil {
-				Log("RequestId %s Status %s Status Code %d", reqId, resp.Status, resp.StatusCode)
+				Log("RequestId %s Status %s Status Code %d", reqID, resp.Status, resp.StatusCode)
 			}
 			return output.FLB_RETRY
 		}
@@ -930,48 +930,68 @@ func GetContainerIDK8sNamespacePodNameFromFileName(filename string) (string, str
 // InitializePlugin reads and populates plugin configuration
 func InitializePlugin(pluginConfPath string, agentVersion string) {
 
-	// StdoutIgnoreNsSet = make(map[string]bool)
-	// StderrIgnoreNsSet = make(map[string]bool)
-	// ImageIDMap = make(map[string]string)
-	// NameIDMap = make(map[string]string)
-	// // Keeping the two error hashes separate since we need to keep the config error hash for the lifetime of the container
-	// // whereas the prometheus scrape error hash needs to be refreshed every hour
-	// ConfigErrorEvent = make(map[string]KubeMonAgentEventTags)
-	// PromScrapeErrorEvent = make(map[string]KubeMonAgentEventTags)
-	// // Initilizing this to true to skip the first kubemonagentevent flush since the errors are not populated at this time
-	// skipKubeMonEventsFlush = true
+	StdoutIgnoreNsSet = make(map[string]bool)
+	StderrIgnoreNsSet = make(map[string]bool)
+	ImageIDMap = make(map[string]string)
+	NameIDMap = make(map[string]string)
+	// Keeping the two error hashes separate since we need to keep the config error hash for the lifetime of the container
+	// whereas the prometheus scrape error hash needs to be refreshed every hour
+	ConfigErrorEvent = make(map[string]KubeMonAgentEventTags)
+	PromScrapeErrorEvent = make(map[string]KubeMonAgentEventTags)
+	// Initilizing this to true to skip the first kubemonagentevent flush since the errors are not populated at this time
+	skipKubeMonEventsFlush = true
 
-	// enrichContainerLogsSetting := os.Getenv("AZMON_CLUSTER_CONTAINER_LOG_ENRICH")
-	// 	if (strings.Compare(enrichContainerLogsSetting, "true") == 0) {
-	// 		enrichContainerLogs = true
-	// 		Log("ContainerLogEnrichment=true \n")
-	// 	} else {
-	// 		enrichContainerLogs = false
-	// 		Log("ContainerLogEnrichment=false \n")
-	// 	}
+	enrichContainerLogsSetting := os.Getenv("AZMON_CLUSTER_CONTAINER_LOG_ENRICH")
+	if strings.Compare(enrichContainerLogsSetting, "true") == 0 {
+		enrichContainerLogs = true
+		Log("ContainerLogEnrichment=true \n")
+	} else {
+		enrichContainerLogs = false
+		Log("ContainerLogEnrichment=false \n")
+	}
 
-	// pluginConfig, err := ReadConfiguration(pluginConfPath)
-	// if err != nil {
-	// 	message := fmt.Sprintf("Error Reading plugin config path : %s \n", err.Error())
-	// 	Log(message)
-	// 	SendException(message)
-	// 	time.Sleep(30 * time.Second)
-	// 	log.Fatalln(message)
-	// }
+	pluginConfig, err := ReadConfiguration(pluginConfPath)
+	if err != nil {
+		message := fmt.Sprintf("Error Reading plugin config path : %s \n", err.Error())
+		Log(message)
+		SendException(message)
+		time.Sleep(30 * time.Second)
+		log.Fatalln(message)
+	}
 
-	// omsadminConf, err := ReadConfiguration(pluginConfig["omsadmin_conf_path"])
-	// if err != nil {
-	// 	message := fmt.Sprintf("Error Reading omsadmin configuration %s\n", err.Error())
-	// 	Log(message)
-	// 	SendException(message)
-	// 	time.Sleep(30 * time.Second)
-	// 	log.Fatalln(message)
-	// }
-	OMSEndpoint = os.Getenv("CI_DOMAIN")//omsadminConf["OMS_ENDPOINT"]
+	osType := os.Getenv("OS_TYPE")
+
+	// TODO: Do not execute if windows
+	if strings.Compare(strings.ToLower(osType), "windows") != 0 {
+		omsadminConf, err := ReadConfiguration(pluginConfig["omsadmin_conf_path"])
+		if err != nil {
+			message := fmt.Sprintf("Error Reading omsadmin configuration %s\n", err.Error())
+			Log(message)
+			SendException(message)
+			time.Sleep(30 * time.Second)
+			log.Fatalln(message)
+			OMSEndpoint = omsadminConf["OMS_ENDPOINT"]
+			WorkspaceID = os.Getenv("CI_WSID") //omsadminConf["WORKSPACE_ID"]
+			// Populate Computer field
+		}
+		containerHostName, err1 := ioutil.ReadFile(pluginConfig["container_host_file_path"])
+		if err1 != nil {
+			// It is ok to log here and continue, because only the Computer column will be missing,
+			// which can be deduced from a combination of containerId, and docker logs on the node
+			message := fmt.Sprintf("Error when reading containerHostName file %s.\n It is ok to log here and continue, because only the Computer column will be missing, which can be deduced from a combination of containerId, and docker logs on the nodes\n", err.Error())
+			Log(message)
+			SendException(message)
+		} else {
+			Computer = strings.TrimSuffix(ToString(containerHostName), "\n")
+		}
+	} else {
+		OMSEndpoint = os.Getenv("CI_DOMAIN")
+		WorkspaceID = os.Getenv("CI_WSID")
+		Computer = os.Getenv("CI_HOSTNAME")
+	}
+
 	Log("OMSEndpoint %s", OMSEndpoint)
-
-	WorkspaceID = os.Getenv("CI_WSID")//omsadminConf["WORKSPACE_ID"]
-	ResourceID = os.Getenv(envAKSResourceID)//os.Getenv("customResourceId")
+	ResourceID = os.Getenv(envAKSResourceID)
 
 	if len(ResourceID) > 0 {
 		//AKS Scenario
@@ -982,55 +1002,44 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 		Log("ResourceID=%s", ResourceID)
 		Log("ResourceName=%s", ResourceID)
 	}
-	// if ResourceCentric == false {
-	// 	//AKS-Engine/hybrid scenario
-	// 	ResourceName = os.Getenv(ResourceNameEnv)
-	// 	ResourceID = ResourceName
-	// 	Log("ResourceCentric: False")
-	// 	Log("ResourceID=%s", ResourceID)
-	// 	Log("ResourceName=%s", ResourceName)
-	// }
-	
+	if ResourceCentric == false {
+		//AKS-Engine/hybrid scenario
+		ResourceName = os.Getenv(ResourceNameEnv)
+		ResourceID = ResourceName
+		Log("ResourceCentric: False")
+		Log("ResourceID=%s", ResourceID)
+		Log("ResourceName=%s", ResourceName)
+	}
+
 	// // log runtime info for debug purpose
-	// containerRuntime = os.Getenv(ContainerRuntimeEnv)		
-	// Log("Container Runtime engine %s", containerRuntime)	
-	
+	containerRuntime = os.Getenv(ContainerRuntimeEnv)
+	Log("Container Runtime engine %s", containerRuntime)
 
-	// //set useragent to be used by ingestion 
-	// docker_cimprov_version := strings.TrimSpace(os.Getenv("DOCKER_CIMPROV_VERSION"))
-	// if len(docker_cimprov_version) > 0 {
-	// 	dockerCimprovVersion = docker_cimprov_version
-	// }
+	// set useragent to be used by ingestion
+	dockerCimprovVersionEnv := strings.TrimSpace(os.Getenv("DOCKER_CIMPROV_VERSION"))
+	if len(dockerCimprovVersionEnv) > 0 {
+		dockerCimprovVersion = dockerCimprovVersionEnv
+	}
 
-	// userAgent = fmt.Sprintf("%s/%s", agentName, dockerCimprovVersion)
+	userAgent = fmt.Sprintf("%s/%s", agentName, dockerCimprovVersion)
 
-	// Log("Usage-Agent = %s \n", userAgent)
+	Log("Usage-Agent = %s \n", userAgent)
 
-	// // Initialize image,name map refresh ticker
-	// containerInventoryRefreshInterval, err := strconv.Atoi(pluginConfig["container_inventory_refresh_interval"])
-	// if err != nil {
-	// 	message := fmt.Sprintf("Error Reading Container Inventory Refresh Interval %s", err.Error())
-	// 	Log(message)
-	// 	SendException(message)
-	// 	Log("Using Default Refresh Interval of %d s\n", defaultContainerInventoryRefreshInterval)
-	// 	containerInventoryRefreshInterval = defaultContainerInventoryRefreshInterval
-	// }
-	// Log("containerInventoryRefreshInterval = %d \n", containerInventoryRefreshInterval)
-	// ContainerImageNameRefreshTicker = time.NewTicker(time.Second * time.Duration(containerInventoryRefreshInterval))
+	// Initialize image,name map refresh ticker
+	containerInventoryRefreshInterval, err := strconv.Atoi(pluginConfig["container_inventory_refresh_interval"])
+	if err != nil {
+		message := fmt.Sprintf("Error Reading Container Inventory Refresh Interval %s", err.Error())
+		Log(message)
+		SendException(message)
+		Log("Using Default Refresh Interval of %d s\n", defaultContainerInventoryRefreshInterval)
+		containerInventoryRefreshInterval = defaultContainerInventoryRefreshInterval
+	}
+	Log("containerInventoryRefreshInterval = %d \n", containerInventoryRefreshInterval)
+	ContainerImageNameRefreshTicker = time.NewTicker(time.Second * time.Duration(containerInventoryRefreshInterval))
 
-	// Log("kubeMonAgentConfigEventFlushInterval = %d \n", kubeMonAgentConfigEventFlushInterval)
-	// KubeMonAgentConfigEventsSendTicker = time.NewTicker(time.Minute * time.Duration(kubeMonAgentConfigEventFlushInterval))
+	Log("kubeMonAgentConfigEventFlushInterval = %d \n", kubeMonAgentConfigEventFlushInterval)
+	KubeMonAgentConfigEventsSendTicker = time.NewTicker(time.Minute * time.Duration(kubeMonAgentConfigEventFlushInterval))
 
-	// // Populate Computer field
-	// containerHostName, err := ioutil.ReadFile(pluginConfig["container_host_file_path"])
-	// if err != nil {
-	// 	// It is ok to log here and continue, because only the Computer column will be missing,
-	// 	// which can be deduced from a combination of containerId, and docker logs on the node
-	// 	message := fmt.Sprintf("Error when reading containerHostName file %s.\n It is ok to log here and continue, because only the Computer column will be missing, which can be deduced from a combination of containerId, and docker logs on the nodes\n", err.Error())
-	// 	Log(message)
-	// 	SendException(message)
-	// }
-	Computer = os.Getenv("CI_HOSTNAME")//strings.TrimSuffix(ToString(containerHostName), "\n")
 	Log("Computer == %s \n", Computer)
 
 	ret, err := InitializeTelemetryClient(agentVersion)
@@ -1041,38 +1050,38 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 	}
 
 	// Initialize KubeAPI Client
-	// config, err := rest.InClusterConfig()
-	// if err != nil {
-	// 	message := fmt.Sprintf("Error getting config %s.\nIt is ok to log here and continue, because the logs will be missing image and Name, but the logs will still have the containerID", err.Error())
-	// 	Log(message)
-	// 	SendException(message)
-	// }
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		message := fmt.Sprintf("Error getting config %s.\nIt is ok to log here and continue, because the logs will be missing image and Name, but the logs will still have the containerID", err.Error())
+		Log(message)
+		SendException(message)
+	}
 
-	// ClientSet, err = kubernetes.NewForConfig(config)
-	// if err != nil {
-	// 	message := fmt.Sprintf("Error getting clientset %s.\nIt is ok to log here and continue, because the logs will be missing image and Name, but the logs will still have the containerID", err.Error())
-	// 	SendException(message)
-	// 	Log(message)
-	// }
+	ClientSet, err = kubernetes.NewForConfig(config)
+	if err != nil {
+		message := fmt.Sprintf("Error getting clientset %s.\nIt is ok to log here and continue, because the logs will be missing image and Name, but the logs will still have the containerID", err.Error())
+		SendException(message)
+		Log(message)
+	}
 
-	// PluginConfiguration = pluginConfig
+	PluginConfiguration = pluginConfig
 
 	CreateHTTPClient()
 
-	// if strings.Compare(strings.ToLower(os.Getenv("CONTROLLER_TYPE")), "daemonset") == 0 {
-	// 	populateExcludedStdoutNamespaces()
-	// 	populateExcludedStderrNamespaces()
-	// 	if enrichContainerLogs == true {
-	// 		Log("ContainerLogEnrichment=true; starting goroutine to update containerimagenamemaps \n")
-	// 		go updateContainerImageNameMaps()
-	// 	} else {
+	if strings.Compare(strings.ToLower(os.Getenv("CONTROLLER_TYPE")), "daemonset") == 0 {
+		populateExcludedStdoutNamespaces()
+		populateExcludedStderrNamespaces()
+		if enrichContainerLogs == true {
+			Log("ContainerLogEnrichment=true; starting goroutine to update containerimagenamemaps \n")
+			go updateContainerImageNameMaps()
+		} else {
 			Log("ContainerLogEnrichment=false \n")
-	// 	}
+		}
 
-	// 	// Flush config error records every hour
-	// 	go flushKubeMonAgentEventRecords()
-	// } else {
-	// 	Log("Running in replicaset. Disabling container enrichment caching & updates \n")
-	// }
+		// Flush config error records every hour
+		go flushKubeMonAgentEventRecords()
+	} else {
+		Log("Running in replicaset. Disabling container enrichment caching & updates \n")
+	}
 
 }

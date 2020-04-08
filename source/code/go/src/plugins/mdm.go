@@ -13,7 +13,7 @@ import (
 	// "encoding/json"
 	// "fmt"
 	// "log"
-	// "net/http"
+	"net/http"
 	// "os"
 	// "sync"
 	// "time"
@@ -90,7 +90,7 @@ var (
 CachedAccessToken string
 GetAccessTokenBackoffExpiry = time.Now()
 TokenExpiryTime = time.Now()
-
+TokenUri string
 )
 
 var (
@@ -147,12 +147,31 @@ func GetAccessToken() {
 	  // Refresh token 5 minutes from expiration
 		Log("Refreshing access token for mdm go plugin..")
 
-		if (!!@useMsi)
-		  @log.info "Using msi to get the token to post MDM data"
-		  ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-MSI", {})
-		  @log.info "Opening TCP connection"
+		if useMsi
+		  Log("Using msi to get the token to post MDM data")
+	SendEvent("AKSCustomMetricsMDMGoPluginStart", map[])
+		//   ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMToken-MSI", {})
+		//   Log("Opening TCP connection")
+// Basic HTTP GET request
+resp, err := http.Get(TokenUri)
+if err != nil {
+	message := fmt.Sprintf("Error getting access token using SP %s \n", err.Error())
+	Log(message)
+	SendException(message)
+}
+defer resp.Body.Close()
+
+// Read body from response
+body, err := ioutil.ReadAll(resp.Body)
+if err != nil {
+	message := fmt.Sprintf("Error reading response while getting access token using SP %s \n", err.Error())
+	Log(message)
+	SendException(message)
+}
+
+fmt.Printf("%s\n", body)
+
 		  http_access_token = Net::HTTP.start(@parsed_token_uri.host, @parsed_token_uri.port, :use_ssl => false)
-		  # http_access_token.use_ssl = false
 		  token_request = Net::HTTP::Get.new(@parsed_token_uri.request_uri)
 		  token_request["Metadata"] = true
 		else
@@ -264,12 +283,12 @@ func InitializeMdmPlugin(pluginConfPath string, agentVersion string) {
 		strings.ToLower(spClientId) != "msi" {
 	  useMsi = false
 	//   aad_token_url = @@aad_token_url_template % {tenant_id: @data_hash["tenantId"]}
-	  aadTokenUrl = strings.Replace(AadTokenUrlTemplate, "tenant_id", result["tenantId"], -1)
+	TokenUri = strings.Replace(AadTokenUrlTemplate, "tenant_id", result["tenantId"], -1)
 	//   @parsed_token_uri = URI.parse(aad_token_url)
 	} else {
 	  useMsi = true
-	  msiEndpoint = strings.Replace(MsiEndpointTemplate, "user_assigned_client_id", UserAssignedClientId, -1)
-	  msiEndpoint = strings.Replace(MsiEndpointTemplate, "token_resource_url", TokenResourceUrl , -1)
+	  TokenUri = strings.Replace(MsiEndpointTemplate, "user_assigned_client_id", UserAssignedClientId, -1)
+	  TokenUri = strings.Replace(MsiEndpointTemplate, "token_resource_url", TokenResourceUrl , -1)
 	//   @parsed_token_uri = URI.parse(msi_endpoint)
 	}
 

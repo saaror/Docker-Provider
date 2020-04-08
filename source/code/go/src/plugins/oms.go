@@ -254,7 +254,7 @@ func createLogger() *log.Logger {
 	logger := log.New(logfile, "", 0)
 
 	logger.SetOutput(&lumberjack.Logger{
-		Filename:   path,
+		Filename:   logPath,
 		MaxSize:    10, //megabytes
 		MaxBackups: 1,
 		MaxAge:     28,   //days

@@ -15,7 +15,7 @@ module Fluent
 
     config_param :enable_log, :integer, :default => 0
     config_param :log_path, :string, :default => "/var/opt/microsoft/docker-cimprov/log/filter_telegraf2mdm.log"
-    # config_param :custom_metrics_azure_regions, :string
+    config_param :custom_metrics_azure_regions, :string
     # config_param :metrics_to_collect, :string, :default => "cpuUsageNanoCores,memoryWorkingSetBytes,memoryRssBytes"
 
     # @@cpu_usage_milli_cores = "cpuUsageMillicores"

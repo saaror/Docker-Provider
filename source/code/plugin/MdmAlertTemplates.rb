@@ -83,10 +83,8 @@ class MdmAlertTemplates
                     }
                 }
             }'
-            #"device"
-            # "%{devicevalue}"
 
-# Aggregation - Sum
+  # Aggregation - Sum
   Disk_used_percentage_metrics_template = '
             {
                 "time": "%{timestamp}",
@@ -95,12 +93,14 @@ class MdmAlertTemplates
                         "metric": "%{metricName}",
                         "namespace": "Insights.Container/nodes",
                         "dimNames": [
-                        "host"
+                            "host",
+                            "device"
                         ],
                         "series": [
                         {
                             "dimValues": [
-                            "%{hostvalue}"
+                            "%{hostvalue}",
+                            "%{devicevalue}"
                             ],
                             "min": %{diskUsagePercentageValue},
                             "max": %{diskUsagePercentageValue},

@@ -210,7 +210,7 @@ class MdmMetricsGenerator
             timestamp: convertedTimestamp,
             metricName: Constants::MDM_DISK_USED_PERCENTAGE,
             hostvalue: hostName,
-            devicevalue: deviceName,
+            # devicevalue: deviceName,
             diskUsagePercentageValue: usedPercent
           }
           records.push(JSON.parse(diskUsedPercentageRecord))

@@ -13,10 +13,14 @@ class Constants
     INSIGHTSMETRICS_TAGS_CONTROLLER_KIND = "controllerKind"
     INSIGHTSMETRICS_FLUENT_TAG = "oms.api.InsightsMetrics"
     REASON_OOM_KILLED = "oomkilled"
+
+    # MDM Metric names
     MDM_OOM_KILLED_CONTAINER_COUNT = "OomKilledContainerCount"
     MDM_CONTAINER_RESTART_COUNT = "ContainerRestartCount"
     MDM_POD_READY_PERCENTAGE = "PodReadyPercentage"
     MDM_STALE_COMPLETED_JOB_COUNT = "StaleCompletedJobCount"
+    MDM_DISK_USED_PERCENTAGE = "DiskUsedPercentage"
+    
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5
     OBJECT_NAME_K8S_CONTAINER = "K8SContainer"
     OBJECT_NAME_K8S_NODE = "K8SNode"
@@ -26,4 +30,5 @@ class Constants
     CONTAINER_TERMINATION_REASON_COMPLETED = "completed"
     CONTAINER_STATE_TERMINATED = "terminated"
     STALE_JOB_TIME_IN_MINUTES = 360
+    TELEGRAF_DISK_METRICS = "container.azm.ms/disk"
 end

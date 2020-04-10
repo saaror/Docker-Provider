@@ -189,6 +189,39 @@ class MdmMetricsGenerator
       return records
     end
 
+    def getDiskUsageMetricRecords(record)
+      records = []
+      usedPercent = nil
+      deviceName = nil
+      hostName = nil
+      begin
+        @log.info "In getDiskUsageMetricRecords..."
+        if !record["fields"].nil? && !record["fields"]["used_percent"].nil?
+          usedPercent = record["fields"]["used_percent"]
+        end
+        if !record["tags"].nil?
+          deviceName = record["tags"]["device"]
+          hostName = record["tags"]["hostName"]
+        end
+        timestamp = record["timestamp"]
+        convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
+        if !usedPercent.nil? && !deviceName.nil? && !hostName.nil?
+          diskUsedPercentageRecord = MdmAlertTemplates::Disk_used_percentage_metrics_template % {
+            timestamp: convertedTimestamp,
+            metricName: Constants::MDM_DISK_USED_PERCENTAGE,
+            hostvalue: hostName,
+            devicevalue: deviceName,
+            diskUsagePercentageValue: usedPercent
+          }
+          records.push(JSON.parse(diskUsedPercentageRecord))
+        end
+      rescue => errorStr
+        @log.info "Error in getDiskUsageMetricRecords: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      return records
+    end
+
     def getNodeResourceMetricRecords(record, metric_name, metric_value, percentage_metric_value)
       records = []
       begin

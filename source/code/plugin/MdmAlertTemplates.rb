@@ -1,5 +1,5 @@
 class MdmAlertTemplates
-    Pod_Metrics_custom_metrics_template = '
+  Pod_Metrics_custom_metrics_template = '
     {
         "time": "%{timestamp}",
         "data": {
@@ -26,7 +26,7 @@ class MdmAlertTemplates
         }
     }'
 
-    Container_resource_utilization_template = '
+  Container_resource_utilization_template = '
     {
         "time": "%{timestamp}",
         "data": {
@@ -59,7 +59,7 @@ class MdmAlertTemplates
         }
     }'
 
-    Node_resource_metrics_template = '
+  Node_resource_metrics_template = '
             {
                 "time": "%{timestamp}",
                 "data": {
@@ -77,6 +77,33 @@ class MdmAlertTemplates
                             "min": %{metricminvalue},
                             "max": %{metricmaxvalue},
                             "sum": %{metricsumvalue},
+                            "count": 1
+                        }
+                        ]
+                    }
+                }
+            }'
+
+  Disk_used_percentage_metrics_template = '
+            {
+                "time": "%{timestamp}",
+                "data": {
+                    "baseData": {
+                        "metric": "%{metricName}",
+                        "namespace": "Insights.Container/nodes",
+                        "dimNames": [
+                        "host",
+                        "device"
+                        ],
+                        "series": [
+                        {
+                            "dimValues": [
+                            "%{hostvalue}",
+                            "%{devicevalue}"
+                            ],
+                            "min": %{diskUsagePercentageValue},
+                            "max": %{diskUsagePercentageValue},
+                            "sum": %{diskUsagePercentageValue},
                             "count": 1
                         }
                         ]

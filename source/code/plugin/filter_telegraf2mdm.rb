@@ -9,6 +9,7 @@ module Fluent
   # require_relative "CustomMetricsUtils"
   require_relative "kubelet_utils"
   require_relative "MdmMetricsGenerator"
+  require_relative "constants"
 
   class Telegraf2MdmFilter < Filter
     Fluent::Plugin.register_filter("filter_telegraf2mdm", self)
@@ -78,6 +79,9 @@ module Fluent
         # if @process_incoming_stream
         # end #end if block for process incoming stream check
         @log.info "tag: #{tag}, time: #{time}, record: #{record}"
+        if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_DISK_METRICS
+          return MdmMetricsGenerator.getDiskUsageMetricRecords(record)
+        end
         return []
       rescue Exception => errorStr
         @log.info "Error processing telegraf record Exception: #{errorStr}"

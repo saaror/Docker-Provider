@@ -85,6 +85,8 @@ class MdmAlertTemplates
             }'
             #"device"
             # "%{devicevalue}"
+
+# Aggregation - Sum
   Disk_used_percentage_metrics_template = '
             {
                 "time": "%{timestamp}",

@@ -15,12 +15,12 @@ class Constants
     REASON_OOM_KILLED = "oomkilled"
 
     # MDM Metric names
-    MDM_OOM_KILLED_CONTAINER_COUNT = "OomKilledContainerCount"
-    MDM_CONTAINER_RESTART_COUNT = "ContainerRestartCount"
-    MDM_POD_READY_PERCENTAGE = "PodReadyPercentage"
-    MDM_STALE_COMPLETED_JOB_COUNT = "StaleCompletedJobCount"
-    MDM_DISK_USED_PERCENTAGE = "DiskUsedPercentage"
-    
+    MDM_OOM_KILLED_CONTAINER_COUNT = "oomKilledContainerCount"
+    MDM_CONTAINER_RESTART_COUNT = "containerRestartCount"
+    MDM_POD_READY_PERCENTAGE = "podReadyPercentage"
+    MDM_STALE_COMPLETED_JOB_COUNT = "staleCompletedJobCount"
+    MDM_DISK_USED_PERCENTAGE = "diskUsedPercentage"
+
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5
     OBJECT_NAME_K8S_CONTAINER = "K8SContainer"
     OBJECT_NAME_K8S_NODE = "K8SNode"

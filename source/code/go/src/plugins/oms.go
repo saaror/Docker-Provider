@@ -70,6 +70,7 @@ const KubeMonAgentEventsFlushedEvent = "KubeMonAgentEventsFlushed"
 // ContainerLogPluginConfFilePath --> config file path for container log plugin
 const DaemonSetContainerLogPluginConfFilePath = "/etc/opt/microsoft/docker-cimprov/out_oms.conf"
 const ReplicaSetContainerLogPluginConfFilePath = "/etc/opt/microsoft/docker-cimprov/out_oms.conf"
+const WindowsContainerLogPluginConfFilePath = "/etc/omsagentwindows/out_oms.conf"
 
 // IPName for Container Log
 const IPName = "Containers"
@@ -230,7 +231,7 @@ func createLogger() *log.Logger {
 	if strings.Compare(strings.ToLower(osType), "windows") != 0 {
 		logPath = "/var/opt/microsoft/docker-cimprov/log/fluent-bit-out-oms-runtime.log"
 	} else {
-		logPath = "/opt/microsoft/winaks/log"
+		logPath = "/etc/omsagentwinoows/fluent-bit-out-oms-runtime.log"
 	}
 
 	if _, err := os.Stat(logPath); err == nil {

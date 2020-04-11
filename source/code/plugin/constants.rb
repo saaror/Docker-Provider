@@ -20,6 +20,9 @@ class Constants
     MDM_POD_READY_PERCENTAGE = "podReadyPercentage"
     MDM_STALE_COMPLETED_JOB_COUNT = "staleCompletedJobCount"
     MDM_DISK_USED_PERCENTAGE = "diskUsedPercentage"
+    MDM_NETWORK_ERR_IN = "networkErrIn"
+    MDM_NETWORK_ERR_OUT = "networkErrOut"
+
 
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5
     OBJECT_NAME_K8S_CONTAINER = "K8SContainer"
@@ -31,4 +34,6 @@ class Constants
     CONTAINER_STATE_TERMINATED = "terminated"
     STALE_JOB_TIME_IN_MINUTES = 360
     TELEGRAF_DISK_METRICS = "container.azm.ms/disk"
+    TELEGRAF_NETWORK_METRICS = "container.azm.ms/net"
+
 end

@@ -111,4 +111,31 @@ class MdmAlertTemplates
                     }
                 }
             }'
+
+  Network_errors_metrics_template = '
+            {
+                "time": "%{timestamp}",
+                "data": {
+                    "baseData": {
+                        "metric": "%{metricName}",
+                        "namespace": "Insights.Container/nodes",
+                        "dimNames": [
+                            "host",
+                            "interface"
+                        ],
+                        "series": [
+                        {
+                            "dimValues": [
+                                "%{hostvalue}",
+                                "%{interfacevalue}"
+                            ],
+                            "min": %{networkErrValue},
+                            "max": %{networkErrValue},
+                            "sum": %{networkErrValue},
+                            "count": 1
+                        }
+                        ]
+                    }
+                }
+            }'
 end

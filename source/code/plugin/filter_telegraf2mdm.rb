@@ -82,6 +82,9 @@ module Fluent
         if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_DISK_METRICS
           return MdmMetricsGenerator.getDiskUsageMetricRecords(record)
         end
+        if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_NETWORK_METRICS
+          return MdmMetricsGenerator.getNetworkErrorMetricRecords(record)
+        end
         return []
       rescue Exception => errorStr
         @log.info "Error processing telegraf record Exception: #{errorStr}"

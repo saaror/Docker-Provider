@@ -85,6 +85,9 @@ module Fluent
         if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_NETWORK_METRICS
           return MdmMetricsGenerator.getNetworkErrorMetricRecords(record)
         end
+        if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_PROMETHEUS_METRICS
+          return MdmMetricsGenerator.getPrometheusMetricRecords(record)
+        end
         return []
       rescue Exception => errorStr
         @log.info "Error processing telegraf record Exception: #{errorStr}"

@@ -138,4 +138,29 @@ class MdmAlertTemplates
                     }
                 }
             }'
+
+            Api_server_request_errors_metrics_template = '
+            {
+                "time": "%{timestamp}",
+                "data": {
+                    "baseData": {
+                        "metric": "%{metricName}",
+                        "namespace": "Insights.Container/apiserver",
+                        "dimNames": [
+                        ],
+                        "series": [
+                        {
+                            "dimValues": [
+                            ],
+                            "min": %{requestErrValue},
+                            "max": %{requestErrValue},
+                            "sum": %{requestErrValue},
+                            "count": 1
+                        }
+                        ]
+                    }
+                }
+            }'
+
+
 end

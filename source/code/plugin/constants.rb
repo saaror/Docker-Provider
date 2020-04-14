@@ -22,6 +22,7 @@ class Constants
     MDM_DISK_USED_PERCENTAGE = "diskUsedPercentage"
     MDM_NETWORK_ERR_IN = "networkErrIn"
     MDM_NETWORK_ERR_OUT = "networkErrOut"
+    MDM_API_SERVER_ERROR_REQUEST = "errorRequestCount"
 
 
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5
@@ -35,5 +36,5 @@ class Constants
     STALE_JOB_TIME_IN_MINUTES = 360
     TELEGRAF_DISK_METRICS = "container.azm.ms/disk"
     TELEGRAF_NETWORK_METRICS = "container.azm.ms/net"
-
+    TELEGRAF_PROMETHEUS_METRICS = "container.azm.ms/prometheus"
 end

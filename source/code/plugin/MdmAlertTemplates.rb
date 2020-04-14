@@ -139,6 +139,7 @@ class MdmAlertTemplates
                 }
             }'
 
+            #Aggregation should be sum
             Api_server_request_errors_metrics_template = '
             {
                 "time": "%{timestamp}",

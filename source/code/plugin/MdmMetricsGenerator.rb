@@ -272,27 +272,26 @@ class MdmMetricsGenerator
     def getPrometheusMetricRecords(record)
       records = []
       errRequestCount = nil
+      errorCode = nil
 
       begin
         @log.info "In getPrometheusMetricRecords..."
         if !record["fields"].nil?
           errRequestCount = record["fields"]["apiserver_request_count"]
         end
-        # if !record["tags"].nil?
-        #   hostName = record["tags"]["hostName"]
-        #   interfaceName = record["tags"]["interface"]
-        # end
+        if !record["tags"].nil?
+          errorCode = record["tags"]["code"]
+        end
         timestamp = record["timestamp"]
         convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
-        if !errRequestCount.nil?
-            networkErrInRecord = MdmAlertTemplates::Api_server_request_errors_metrics_template % {
+        if !errRequestCount.nil? && !errorCode.nil?
+            apiServerErrMetricRecord = MdmAlertTemplates::Api_server_request_errors_metrics_template % {
               timestamp: convertedTimestamp,
               metricName: Constants::MDM_API_SERVER_ERROR_REQUEST,
-              # hostvalue: hostName,
-              # interfacevalue: interfaceName,
+              codevalue: errorCode,
               requestErrValue: errRequestCount,
             }
-            records.push(JSON.parse(networkErrInRecord))
+            records.push(JSON.parse(apiServerErrMetricRecord))
         end
       rescue => errorStr
         @log.info "Error in getPrometheusMetricRecords: #{errorStr}"

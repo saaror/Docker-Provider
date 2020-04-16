@@ -153,7 +153,7 @@ class MdmAlertTemplates
                         "series": [
                         {
                             "dimValues": [
-                                %{codevalue}
+                                "%{codevalue}"
                             ],
                             "min": %{requestErrValue},
                             "max": %{requestErrValue},
@@ -180,8 +180,8 @@ class MdmAlertTemplates
                                    "series": [
                                    {
                                        "dimValues": [
-                                           %{resourceValue},
-                                           %{verbValue}
+                                           "%{resourceValue}",
+                                           "%{verbValue}"
                                        ],
                                        "min": %{requestLatenciesValue},
                                        "max": %{requestLatenciesValue},

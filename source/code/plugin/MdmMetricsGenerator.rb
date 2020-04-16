@@ -290,7 +290,7 @@ class MdmMetricsGenerator
             timestamp: convertedTimestamp,
             metricName: Constants::MDM_API_SERVER_ERROR_REQUEST,
             codevalue: errorCode,
-            requestErrValue: errRequestCount,
+            requestErrValue: errRequestCount
           }
           records.push(JSON.parse(apiServerErrMetricRecord))
         end
@@ -311,8 +311,8 @@ class MdmMetricsGenerator
         if !fields.nil?
           latenciesSummarySum = fields[Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM]
           latenciesSummaryCount = fields[Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT]
-          if latenciesSummarySum.nil? &&
-             latenciesSummaryCount.nil? &&
+          if !latenciesSummarySum.nil? &&
+             !latenciesSummaryCount.nil? &&
              latenciesSummaryCount != 0
             averageLatency = latenciesSummarySum / latenciesSummaryCount
           end
@@ -331,7 +331,7 @@ class MdmMetricsGenerator
             metricName: Constants::MDM_API_SERVER_REQUEST_LATENCIES,
             resourceValue: resourceName,
             verbValue: verbName,
-            requestLatenciesValue: averageLatency,
+            requestLatenciesValue: averageLatency
           }
           records.push(JSON.parse(apiServerLatencyMetricRecord))
         end
@@ -350,10 +350,12 @@ class MdmMetricsGenerator
         if !record["fields"].nil?
           fields = record["fields"]
           if fields.key?(Constants::PROM_API_SERVER_REQ_COUNT)
+            # @log.info "in key check PROM_API_SERVER_REQ_COUNT: #{record}"
             records.push(getApiServerErrorRequestMetricRecords(record))
           end
           if fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM) ||
-             fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT) ||
+             fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT)
+            #  @log.info "in key check PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM: #{record}"
              records.push(getApiServerLatencyMetricRecords(record))
           end
         end
@@ -361,6 +363,7 @@ class MdmMetricsGenerator
         @log.info "Error in getPrometheusMetricRecords: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
+      @log.info "records being returned: #{records}"
       return records
     end
 

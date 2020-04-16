@@ -278,7 +278,7 @@ class MdmMetricsGenerator
       begin
         @log.info "In getApiServerErrorRequestMetricRecords..."
         if !record["fields"].nil?
-          errRequestCount = record["fields"]["apiserver_request_count"]
+          errRequestCount = record["fields"][Constants::PROM_API_SERVER_REQ_COUNT]
         end
         if !record["tags"].nil?
           errorCode = record["tags"]["code"]
@@ -303,11 +303,37 @@ class MdmMetricsGenerator
 
     def getApiServerLatencyMetricRecords(record)
       records = []
+      averageLatency = nil
+      resourceName = nil
+      verbName = nil
       begin
         fields = record["fields"]
-        if fields.key?(PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM)
+        if !fields.nil?
+          latenciesSummarySum = fields[Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM]
+          latenciesSummaryCount = fields[Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT]
+          if latenciesSummarySum.nil? &&
+             latenciesSummaryCount.nil? &&
+             latenciesSummaryCount != 0
+            averageLatency = latenciesSummarySum / latenciesSummaryCount
+          end
         end
-        if fields.key?(PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT)
+
+        if !record["tags"].nil?
+          resourceName = record["tags"]["resource"]
+          verbName = record["tags"]["verb"]
+        end
+        timestamp = record["timestamp"]
+        convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
+
+        if !averageLatency.nil? && !resourceName.nil? && !verbName.nil?
+          apiServerLatencyMetricRecord = MdmAlertTemplates::Api_server_request_latencies_metrics_template % {
+            timestamp: convertedTimestamp,
+            metricName: Constants::MDM_API_SERVER_REQUEST_LATENCIES,
+            resourceValue: resourceName,
+            verbValue: verbName,
+            requestLatenciesValue: averageLatency,
+          }
+          records.push(JSON.parse(apiServerLatencyMetricRecord))
         end
       rescue => errorStr
         @log.info "Error in getApiServerLatencyMetricRecords: #{errorStr}"

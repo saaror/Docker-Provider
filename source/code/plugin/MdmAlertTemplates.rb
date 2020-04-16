@@ -139,8 +139,8 @@ class MdmAlertTemplates
                 }
             }'
 
-            #Aggregation should be sum
-            Api_server_request_errors_metrics_template = '
+  #Aggregation should be sum
+  Api_server_request_errors_metrics_template = '
             {
                 "time": "%{timestamp}",
                 "data": {
@@ -165,5 +165,31 @@ class MdmAlertTemplates
                 }
             }'
 
-
+  #Aggregation should be sum
+  Api_server_request_latencies_metrics_template = '
+                       {
+                           "time": "%{timestamp}",
+                           "data": {
+                               "baseData": {
+                                   "metric": "%{metricName}",
+                                   "namespace": "Insights.Container/apiserver",
+                                   "dimNames": [
+                                       "resource",
+                                       "verb"
+                                   ],
+                                   "series": [
+                                   {
+                                       "dimValues": [
+                                           %{resourceValue},
+                                           %{verbValue}
+                                       ],
+                                       "min": %{requestLatenciesValue},
+                                       "max": %{requestLatenciesValue},
+                                       "sum": %{requestLatenciesValue},
+                                       "count": 1
+                                   }
+                                   ]
+                               }
+                           }
+                       }'
 end

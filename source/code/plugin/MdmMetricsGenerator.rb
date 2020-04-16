@@ -272,7 +272,7 @@ class MdmMetricsGenerator
     end
 
     def getApiServerErrorRequestMetricRecords(record)
-      records = []
+      errorMetricRecord = nil
       errRequestCount = nil
       errorCode = nil
       begin
@@ -292,17 +292,17 @@ class MdmMetricsGenerator
             codevalue: errorCode,
             requestErrValue: errRequestCount
           }
-          records.push(JSON.parse(apiServerErrMetricRecord))
+          errorMetricRecord = JSON.parse(apiServerErrMetricRecord)
         end
       rescue => errorStr
         @log.info "Error in getApiServerErrorRequestMetricRecords: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
-      return records
+      return errorMetricRecord
     end
 
     def getApiServerLatencyMetricRecords(record)
-      records = []
+      latencyMetricRecord = nil
       averageLatency = nil
       resourceName = nil
       verbName = nil
@@ -315,6 +315,7 @@ class MdmMetricsGenerator
              !latenciesSummaryCount.nil? &&
              latenciesSummaryCount != 0
             averageLatency = latenciesSummarySum / latenciesSummaryCount
+            @log.info "averageLatency: #{averageLatency}"
           end
         end
 
@@ -333,13 +334,13 @@ class MdmMetricsGenerator
             verbValue: verbName,
             requestLatenciesValue: averageLatency
           }
-          records.push(JSON.parse(apiServerLatencyMetricRecord))
+          latencyMetricRecord = JSON.parse(apiServerLatencyMetricRecord)
         end
       rescue => errorStr
         @log.info "Error in getApiServerLatencyMetricRecords: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
-      return records
+      return latencyMetricRecord
     end
 
     def getPrometheusMetricRecords(record)
@@ -351,12 +352,18 @@ class MdmMetricsGenerator
           fields = record["fields"]
           if fields.key?(Constants::PROM_API_SERVER_REQ_COUNT)
             # @log.info "in key check PROM_API_SERVER_REQ_COUNT: #{record}"
-            records.push(getApiServerErrorRequestMetricRecords(record))
+            errorMetricRecord = getApiServerErrorRequestMetricRecords(record)
+            if !errorMetricRecord.nil?
+            records.push(errorMetricRecord)
+            end
           end
           if fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM) ||
              fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT)
             #  @log.info "in key check PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM: #{record}"
-             records.push(getApiServerLatencyMetricRecords(record))
+            latencyMetricRecord = getApiServerLatencyMetricRecords(record)
+            if !latencyMetricRecord.nil?
+             records.push(latencyMetricRecord)
+            end
           end
         end
       rescue => errorStr

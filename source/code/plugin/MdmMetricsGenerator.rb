@@ -315,7 +315,7 @@ class MdmMetricsGenerator
              !latenciesSummaryCount.nil? &&
              latenciesSummaryCount != 0
             averageLatency = latenciesSummarySum / latenciesSummaryCount
-            @log.info "averageLatency: #{averageLatency}"
+            @log.info "averageLatency: #{averageLatency}, latenciesSummarySum: #{latenciesSummarySum}, latenciesSummaryCount: #{latenciesSummaryCount}"
           end
         end
 
@@ -370,7 +370,7 @@ class MdmMetricsGenerator
         @log.info "Error in getPrometheusMetricRecords: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
-      @log.info "records being returned: #{records}"
+      # @log.info "records being returned: #{records}"
       return records
     end
 

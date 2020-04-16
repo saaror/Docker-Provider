@@ -23,7 +23,7 @@ class Constants
     MDM_NETWORK_ERR_IN = "networkErrIn"
     MDM_NETWORK_ERR_OUT = "networkErrOut"
     MDM_API_SERVER_ERROR_REQUEST = "errorRequestCount"
-    MDM_API_SERVER_REQUEST_LATENCIES = "requestLatencies"
+    MDM_API_SERVER_REQUEST_LATENCIES = "requestLatenciesMS"
 
 
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5

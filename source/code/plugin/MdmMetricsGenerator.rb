@@ -19,6 +19,8 @@ class MdmMetricsGenerator
   @pod_ready_hash = {}
   @pod_not_ready_hash = {}
   @pod_ready_percentage_hash = {}
+  @apiserver_request_latencies_sum = {}
+  @apiserver_request_latencies_count = {}
 
   # @@cpu_usage_milli_cores = "cpuUsageMillicores"
   # @@cpu_usage_nano_cores = "cpuUsageNanoCores"
@@ -211,7 +213,7 @@ class MdmMetricsGenerator
             metricName: Constants::MDM_DISK_USED_PERCENTAGE,
             hostvalue: hostName,
             devicevalue: deviceName,
-            diskUsagePercentageValue: usedPercent
+            diskUsagePercentageValue: usedPercent,
           }
           records.push(JSON.parse(diskUsedPercentageRecord))
         end
@@ -269,13 +271,12 @@ class MdmMetricsGenerator
       return records
     end
 
-    def getPrometheusMetricRecords(record)
+    def getApiServerErrorRequestMetricRecords(record)
       records = []
       errRequestCount = nil
       errorCode = nil
-
       begin
-        @log.info "In getPrometheusMetricRecords..."
+        @log.info "In getApiServerErrorRequestMetricRecords..."
         if !record["fields"].nil?
           errRequestCount = record["fields"]["apiserver_request_count"]
         end
@@ -285,13 +286,50 @@ class MdmMetricsGenerator
         timestamp = record["timestamp"]
         convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
         if !errRequestCount.nil? && !errorCode.nil?
-            apiServerErrMetricRecord = MdmAlertTemplates::Api_server_request_errors_metrics_template % {
-              timestamp: convertedTimestamp,
-              metricName: Constants::MDM_API_SERVER_ERROR_REQUEST,
-              codevalue: errorCode,
-              requestErrValue: errRequestCount,
-            }
-            records.push(JSON.parse(apiServerErrMetricRecord))
+          apiServerErrMetricRecord = MdmAlertTemplates::Api_server_request_errors_metrics_template % {
+            timestamp: convertedTimestamp,
+            metricName: Constants::MDM_API_SERVER_ERROR_REQUEST,
+            codevalue: errorCode,
+            requestErrValue: errRequestCount,
+          }
+          records.push(JSON.parse(apiServerErrMetricRecord))
+        end
+      rescue => errorStr
+        @log.info "Error in getApiServerErrorRequestMetricRecords: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      return records
+    end
+
+    def getApiServerLatencyMetricRecords(record)
+      records = []
+      begin
+        fields = record["fields"]
+        if fields.key?(PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM)
+        end
+        if fields.key?(PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT)
+        end
+      rescue => errorStr
+        @log.info "Error in getApiServerLatencyMetricRecords: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      return records
+    end
+
+    def getPrometheusMetricRecords(record)
+      records = []
+      # errRequestCount = nil
+      # errorCode = nil
+      begin
+        if !record["fields"].nil?
+          fields = record["fields"]
+          if fields.key?(Constants::PROM_API_SERVER_REQ_COUNT)
+            records.push(getApiServerErrorRequestMetricRecords(record))
+          end
+          if fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM) ||
+             fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT) ||
+             records.push(getApiServerLatencyMetricRecords(record))
+          end
         end
       rescue => errorStr
         @log.info "Error in getPrometheusMetricRecords: #{errorStr}"

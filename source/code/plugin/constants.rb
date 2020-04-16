@@ -37,4 +37,7 @@ class Constants
     TELEGRAF_DISK_METRICS = "container.azm.ms/disk"
     TELEGRAF_NETWORK_METRICS = "container.azm.ms/net"
     TELEGRAF_PROMETHEUS_METRICS = "container.azm.ms/prometheus"
+    PROM_API_SERVER_REQ_COUNT = "apiserver_request_count"
+    PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM = "apiserver_request_latencies_summary_sum"
+    PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT = "apiserver_request_latencies_summary_count"
 end

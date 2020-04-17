@@ -977,6 +977,7 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 			time.Sleep(30 * time.Second)
 			log.Fatalln(message)
 			OMSEndpoint = omsadminConf["OMS_ENDPOINT"]
+			Log("OMSEndpoint: in Linux Branch %s", OMSEndpoint)
 			WorkspaceID = omsadminConf["WORKSPACE_ID"]
 		}
 		Log("omsAdminConf: %s", omsadminConf)

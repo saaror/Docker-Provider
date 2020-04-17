@@ -148,12 +148,14 @@ class MdmAlertTemplates
                         "metric": "%{metricName}",
                         "namespace": "Insights.Container/apiserver",
                         "dimNames": [
-                            "errorCode"
+                            "errorResponseCode",
+                            "errorCategory"
                         ],
                         "series": [
                         {
                             "dimValues": [
-                                "%{codevalue}"
+                                "%{codevalue}",
+                                "%{errorCategoryValue}"
                             ],
                             "min": %{requestErrValue},
                             "max": %{requestErrValue},

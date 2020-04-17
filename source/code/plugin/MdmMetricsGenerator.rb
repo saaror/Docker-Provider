@@ -275,6 +275,7 @@ class MdmMetricsGenerator
       errorMetricRecord = nil
       errRequestCount = nil
       errorCode = nil
+      errorCodeCategory = nil
       begin
         @log.info "In getApiServerErrorRequestMetricRecords..."
         if !record["fields"].nil?
@@ -282,14 +283,22 @@ class MdmMetricsGenerator
         end
         if !record["tags"].nil?
           errorCode = record["tags"]["code"]
+          if !errorCode.nil?
+            if errorCode.start_with?("4")
+              errorCodeCategory = Constants.CLIENT_ERROR_CATEGORY
+            elsif errorCode.start_with?("5")
+              errorCodeCategory = Constants.SERVER_ERROR_CATEGORY
+            end
+          end
         end
         timestamp = record["timestamp"]
         convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
-        if !errRequestCount.nil? && !errorCode.nil?
+        if !errRequestCount.nil? && !errorCode.nil? && !errorCodeCategory.nil?
           apiServerErrMetricRecord = MdmAlertTemplates::Api_server_request_errors_metrics_template % {
             timestamp: convertedTimestamp,
             metricName: Constants::MDM_API_SERVER_ERROR_REQUEST,
             codevalue: errorCode,
+            errorCategoryValue: errorCodeCategory,
             requestErrValue: errRequestCount
           }
           errorMetricRecord = JSON.parse(apiServerErrMetricRecord)
@@ -332,7 +341,7 @@ class MdmMetricsGenerator
             metricName: Constants::MDM_API_SERVER_REQUEST_LATENCIES,
             resourceValue: resourceName,
             verbValue: verbName,
-            requestLatenciesValue: averageLatency
+            requestLatenciesValue: averageLatency,
           }
           latencyMetricRecord = JSON.parse(apiServerLatencyMetricRecord)
         end
@@ -354,7 +363,7 @@ class MdmMetricsGenerator
             # @log.info "in key check PROM_API_SERVER_REQ_COUNT: #{record}"
             errorMetricRecord = getApiServerErrorRequestMetricRecords(record)
             if !errorMetricRecord.nil?
-            records.push(errorMetricRecord)
+              records.push(errorMetricRecord)
             end
           end
           if fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM) ||
@@ -362,7 +371,7 @@ class MdmMetricsGenerator
             #  @log.info "in key check PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM: #{record}"
             latencyMetricRecord = getApiServerLatencyMetricRecords(record)
             if !latencyMetricRecord.nil?
-             records.push(latencyMetricRecord)
+              records.push(latencyMetricRecord)
             end
           end
         end

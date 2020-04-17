@@ -968,6 +968,7 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 
 	// Linux
 	if strings.Compare(strings.ToLower(osType), "windows") != 0 {
+		Log("Reading configuration for Linux from %s", pluginConfPath)
 		omsadminConf, err := ReadConfiguration(pluginConfig["omsadmin_conf_path"])
 		if err != nil {
 			message := fmt.Sprintf("Error Reading omsadmin configuration %s\n", err.Error())
@@ -978,6 +979,7 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 			OMSEndpoint = omsadminConf["OMS_ENDPOINT"]
 			WorkspaceID = omsadminConf["WORKSPACE_ID"]
 		}
+		Log("omsAdminConf: %s", omsadminConf)
 		// Populate Computer field
 		containerHostName, err1 := ioutil.ReadFile(pluginConfig["container_host_file_path"])
 		if err1 != nil {

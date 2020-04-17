@@ -976,11 +976,9 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 			SendException(message)
 			time.Sleep(30 * time.Second)
 			log.Fatalln(message)
-			OMSEndpoint = omsadminConf["OMS_ENDPOINT"]
-			Log("OMSEndpoint: in Linux Branch %s", OMSEndpoint)
-			WorkspaceID = omsadminConf["WORKSPACE_ID"]
 		}
-		Log("omsAdminConf: %s", omsadminConf)
+		OMSEndpoint = omsadminConf["OMS_ENDPOINT"]
+		WorkspaceID = omsadminConf["WORKSPACE_ID"]
 		// Populate Computer field
 		containerHostName, err1 := ioutil.ReadFile(pluginConfig["container_host_file_path"])
 		if err1 != nil {

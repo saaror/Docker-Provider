@@ -231,7 +231,7 @@ func createLogger() *log.Logger {
 	if strings.Compare(strings.ToLower(osType), "windows") != 0 {
 		logPath = "/var/opt/microsoft/docker-cimprov/log/fluent-bit-out-oms-runtime.log"
 	} else {
-		logPath = "/etc/omsagentwinoows/fluent-bit-out-oms-runtime.log"
+		logPath = "/etc/omsagentwindows/fluent-bit-out-oms-runtime.log"
 	}
 
 	if _, err := os.Stat(logPath); err == nil {
@@ -553,7 +553,7 @@ func flushKubeMonAgentEventRecords() {
 						Log("Failed to flush %d records after %s", len(laKubeMonAgentEventsRecords), elapsed)
 					} else if resp == nil || resp.StatusCode != 200 {
 						if resp != nil {
-							Log(" RequestId %s Status %s Status Code %d", reqId, resp.Status, resp.StatusCode)
+							Log("flushKubeMonAgentEventRecords: RequestId %s Status %s Status Code %d", reqId, resp.Status, resp.StatusCode)
 						}
 						Log("Failed to flush %d records after %s", len(laKubeMonAgentEventsRecords), elapsed)
 					} else {
@@ -774,15 +774,13 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 		stringMap["SourceSystem"] = "Containers"
 		stringMap["Id"] = containerID
 
-		// if val, ok := imageIDMap[containerID]; ok {
-		// 	stringMap["Image"] = val
-		stringMap["Image"] = ""
-		// }
+		if val, ok := imageIDMap[containerID]; ok {
+			stringMap["Image"] = val
+		}
 
-		// if val, ok := nameIDMap[containerID]; ok {
-		// 	stringMap["Name"] = val
-		stringMap["Name"] = ""
-		// }
+		if val, ok := nameIDMap[containerID]; ok {
+			stringMap["Name"] = val
+		}
 
 		var dataItem DataItem
 		if enrichContainerLogs == true {
@@ -844,10 +842,6 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 			return output.FLB_OK
 		}
 
-		loganalyticsWorkspaceID := os.Getenv("CI_WSID")
-		logAnalyticsDomain := os.Getenv("CI_DOMAIN")
-		OMSEndpoint := "https://" + loganalyticsWorkspaceID + ".ods." + logAnalyticsDomain + "/OperationalData.svc/PostJsonDataItems"
-
 		req, _ := http.NewRequest("POST", OMSEndpoint, bytes.NewBuffer(marshalled))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("User-Agent", userAgent)
@@ -873,7 +867,7 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		if resp == nil || resp.StatusCode != 200 {
 			if resp != nil {
-				Log("RequestId %s Status %s Status Code %d", reqID, resp.Status, resp.StatusCode)
+				Log("PostDataHelper: RequestId %s Status %s Status Code %d", reqID, resp.Status, resp.StatusCode)
 			}
 			return output.FLB_RETRY
 		}
@@ -949,7 +943,7 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 	// whereas the prometheus scrape error hash needs to be refreshed every hour
 	ConfigErrorEvent = make(map[string]KubeMonAgentEventTags)
 	PromScrapeErrorEvent = make(map[string]KubeMonAgentEventTags)
-	// Initilizing this to true to skip the first kubemonagentevent flush since the errors are not populated at this time
+	// Initializing this to true to skip the first kubemonagentevent flush since the errors are not populated at this time
 	skipKubeMonEventsFlush = true
 
 	enrichContainerLogsSetting := os.Getenv("AZMON_CLUSTER_CONTAINER_LOG_ENRICH")
@@ -972,7 +966,7 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 
 	osType := os.Getenv("OS_TYPE")
 
-	// TODO: Do not execute if windows
+	// Linux
 	if strings.Compare(strings.ToLower(osType), "windows") != 0 {
 		omsadminConf, err := ReadConfiguration(pluginConfig["omsadmin_conf_path"])
 		if err != nil {
@@ -982,9 +976,9 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 			time.Sleep(30 * time.Second)
 			log.Fatalln(message)
 			OMSEndpoint = omsadminConf["OMS_ENDPOINT"]
-			WorkspaceID = os.Getenv("CI_WSID") //omsadminConf["WORKSPACE_ID"]
-			// Populate Computer field
+			WorkspaceID = omsadminConf["WORKSPACE_ID"]
 		}
+		// Populate Computer field
 		containerHostName, err1 := ioutil.ReadFile(pluginConfig["container_host_file_path"])
 		if err1 != nil {
 			// It is ok to log here and continue, because only the Computer column will be missing,
@@ -996,9 +990,11 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 			Computer = strings.TrimSuffix(ToString(containerHostName), "\n")
 		}
 	} else {
-		OMSEndpoint = os.Getenv("CI_DOMAIN")
-		WorkspaceID = os.Getenv("CI_WSID")
-		Computer = os.Getenv("CI_HOSTNAME")
+		// windows
+		Computer = os.Getenv("HOSTNAME")
+		WorkspaceID = os.Getenv("WSID")
+		logAnalyticsDomain := os.Getenv("DOMAIN")
+		OMSEndpoint = "https://" + WorkspaceID + ".ods." + logAnalyticsDomain + "/OperationalData.svc/PostJsonDataItems"
 	}
 
 	Log("OMSEndpoint %s", OMSEndpoint)

@@ -26,6 +26,7 @@ func FLBPluginInit(ctx unsafe.Pointer) int {
 	osType := os.Getenv("OS_TYPE")
 	if strings.Compare(strings.ToLower(osType), "windows") == 0 {
 		agentVersion = "ciWindowsPrivatePreview"
+		Log("Using %s for plugin config \n", WindowsContainerLogPluginConfFilePath)
 		InitializePlugin(WindowsContainerLogPluginConfFilePath, agentVersion)
 	} else {
 		agentVersion = os.Getenv("AGENT_VERSION")
@@ -72,7 +73,7 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	/**
 	********************************************
 	********************************************
-	* This needs to be updated in the fluent-bit conf file : Confirm before merging to ci_feature!
+	* Kaveesh:	* This needs to be updated in the fluent-bit conf file : Confirm before merging to ci_feature!
 	********************************************
 	********************************************
 	 */

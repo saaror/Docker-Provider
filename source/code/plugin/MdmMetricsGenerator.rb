@@ -19,8 +19,6 @@ class MdmMetricsGenerator
   @pod_ready_hash = {}
   @pod_not_ready_hash = {}
   @pod_ready_percentage_hash = {}
-  @apiserver_request_latencies_sum = {}
-  @apiserver_request_latencies_count = {}
 
   # @@cpu_usage_milli_cores = "cpuUsageMillicores"
   # @@cpu_usage_nano_cores = "cpuUsageNanoCores"
@@ -285,9 +283,9 @@ class MdmMetricsGenerator
           errorCode = record["tags"]["code"]
           if !errorCode.nil?
             if errorCode.start_with?("4")
-              errorCodeCategory = Constants.CLIENT_ERROR_CATEGORY
+              errorCodeCategory = Constants::CLIENT_ERROR_CATEGORY
             elsif errorCode.start_with?("5")
-              errorCodeCategory = Constants.SERVER_ERROR_CATEGORY
+              errorCodeCategory = Constants::SERVER_ERROR_CATEGORY
             end
           end
         end
@@ -313,7 +311,7 @@ class MdmMetricsGenerator
     def getApiServerLatencyMetricRecords(record)
       latencyMetricRecord = nil
       averageLatency = nil
-      resourceName = nil
+      # resourceName = nil
       verbName = nil
       begin
         fields = record["fields"]
@@ -329,7 +327,7 @@ class MdmMetricsGenerator
         end
 
         if !record["tags"].nil?
-          resourceName = record["tags"]["resource"]
+          # resourceName = record["tags"]["resource"]
           verbName = record["tags"]["verb"]
         end
         timestamp = record["timestamp"]
@@ -339,7 +337,7 @@ class MdmMetricsGenerator
           apiServerLatencyMetricRecord = MdmAlertTemplates::Api_server_request_latencies_metrics_template % {
             timestamp: convertedTimestamp,
             metricName: Constants::MDM_API_SERVER_REQUEST_LATENCIES,
-            resourceValue: resourceName,
+            # resourceValue: resourceName,
             verbValue: verbName,
             requestLatenciesValue: averageLatency,
           }

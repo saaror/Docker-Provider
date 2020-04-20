@@ -176,13 +176,11 @@ class MdmAlertTemplates
                                    "metric": "%{metricName}",
                                    "namespace": "Insights.Container/apiserver",
                                    "dimNames": [
-                                       "resource",
                                        "verb"
                                    ],
                                    "series": [
                                    {
                                        "dimValues": [
-                                           "%{resourceValue}",
                                            "%{verbValue}"
                                        ],
                                        "min": %{requestLatenciesValue},

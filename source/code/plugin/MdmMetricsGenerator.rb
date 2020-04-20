@@ -322,7 +322,7 @@ class MdmMetricsGenerator
              !latenciesSummaryCount.nil? &&
              latenciesSummaryCount != 0
             averageLatency = latenciesSummarySum / latenciesSummaryCount
-            @log.info "averageLatency: #{averageLatency}, latenciesSummarySum: #{latenciesSummarySum}, latenciesSummaryCount: #{latenciesSummaryCount}"
+            # @log.info "averageLatency: #{averageLatency}, latenciesSummarySum: #{latenciesSummarySum}, latenciesSummaryCount: #{latenciesSummaryCount}"
           end
         end
 
@@ -333,7 +333,7 @@ class MdmMetricsGenerator
         timestamp = record["timestamp"]
         convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
 
-        if !averageLatency.nil? && !resourceName.nil? && !verbName.nil?
+        if !averageLatency.nil? && !verbName.nil?
           apiServerLatencyMetricRecord = MdmAlertTemplates::Api_server_request_latencies_metrics_template % {
             timestamp: convertedTimestamp,
             metricName: Constants::MDM_API_SERVER_REQUEST_LATENCIES,

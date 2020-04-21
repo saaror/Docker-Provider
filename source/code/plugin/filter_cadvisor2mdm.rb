@@ -162,8 +162,13 @@ module Fluent
             # Send this metric only if resource utilization is greater than configured threshold
             @log.info "percentage_metric_value for metric: #{metricName} for instance: #{instanceName} percentage: #{percentage_metric_value}"
             @log.info "@@metric_name_threshold_name_hash for #{metricName}: #{@@metric_name_threshold_name_hash[metricName]}"
-            if percentage_metric_value > @@metric_name_threshold_name_hash[metricName]
-              return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record, metricName, percentage_metric_value, @containerResourceDimensionHash[instanceName])
+            thresholdPercentage = @@metric_name_threshold_name_hash[metricName]
+            if percentage_metric_value > thresholdPercentage
+              return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record, 
+                                                                              metricName, 
+                                                                              percentage_metric_value, 
+                                                                              @containerResourceDimensionHash[instanceName],
+                                                                              thresholdPercentage)
             else
               return []
             end #end if block for percentage metric > configured threshold % check

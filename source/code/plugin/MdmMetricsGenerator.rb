@@ -158,7 +158,7 @@ class MdmMetricsGenerator
       return records
     end
 
-    def getContainerResourceUtilMetricRecords(record, metricName, percentageMetricValue, dims)
+    def getContainerResourceUtilMetricRecords(record, metricName, percentageMetricValue, dims, thresholdPercentage)
       records = []
       begin
         dimElements = dims.split("~~")
@@ -180,6 +180,7 @@ class MdmMetricsGenerator
           controllerNameDimValue: controllerName,
           namespaceDimValue: podNamespace,
           containerResourceUtilizationPercentage: percentageMetricValue,
+          thresholdPercentageDimValue: thresholdPercentage
         }
         records.push(JSON.parse(resourceUtilRecord))
       rescue => errorStr

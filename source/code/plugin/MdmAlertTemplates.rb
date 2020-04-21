@@ -47,7 +47,7 @@ class MdmAlertTemplates
                         "%{podNameDimValue}",
                         "%{controllerNameDimValue}",
                         "%{namespaceDimValue}",
-                        "95"
+                        "%{thresholdPercentageDimValue}"
                     ],
                     "min": %{containerResourceUtilizationPercentage},
                     "max": %{containerResourceUtilizationPercentage},

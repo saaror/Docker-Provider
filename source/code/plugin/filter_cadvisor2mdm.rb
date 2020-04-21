@@ -16,15 +16,18 @@ module Fluent
     config_param :enable_log, :integer, :default => 0
     config_param :log_path, :string, :default => "/var/opt/microsoft/docker-cimprov/log/filter_cadvisor2mdm.log"
     config_param :custom_metrics_azure_regions, :string
-    config_param :metrics_to_collect, :string, :default => "cpuUsageNanoCores,memoryWorkingSetBytes,memoryRssBytes"
+    config_param :metrics_to_collect, :string, :default => "Constants::CPU_USAGE_NANO_CORES,Constants::MEMORY_WORKING_SET_BYTES,Constants::MEMORY_RSS_BYTES"
 
-    # @@cpu_usage_milli_cores = "cpuUsageMillicores"
-    # @@cpu_usage_nano_cores = "cpuusagenanocores"
-    # @@object_name_k8s_node = "K8SNode"
     @@hostName = (OMS::Common.get_hostname)
 
     @process_incoming_stream = true
     @metrics_to_collect_hash = {}
+
+    @@metric_name_threshold_name_hash = {
+      Constants::CPU_USAGE_NANO_CORES => @cpuUtilThresholdPercentage,
+      Constants::MEMORY_RSS_BYTES => @memoryRssThresholdPercentage,
+      Constants::MEMORY_WORKING_SET_BYTES => @memoryWorkingSetThresholdPercentage,
+    }
 
     def initialize
       super
@@ -55,6 +58,39 @@ module Fluent
           @containerCpuLimitHash = {}
           @containerMemoryLimitHash = {}
           @containerResourceDimensionHash = {}
+
+          # Adding another rescue block here so that failure to get these values dont fail plugin initialization
+          begin
+            cpuThreshold = ENV["AZMON_MDM_CPU_UTILIZATION_THRESHOLD"]
+            if !cpuThreshold.nil? && !cpuThreshold.empty?
+              cpuThresholdFloat = cpuThreshold.to_f
+              @cpuUtilThresholdPercentage = cpuThresholdFloat
+            else
+              @cpuUtilThresholdPercentage = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
+            end
+
+            memoryRssThreshold = ENV["AZMON_MDM_MEMORY_RSS_THRESHOLD"]
+            if !memoryRssThreshold.nil? && !memoryRssThreshold.empty?
+              memoryRssThresholdFloat = memoryRssThreshold.to_f
+              @memoryRssThresholdPercentage = memoryRssThresholdFloat
+            else
+              @memoryRssThresholdPercentage = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
+            end
+
+            memoryWorkingSetThreshold = ENV["AZMON_MDM_MEMORY_WORKING_SET_THRESHOLD"]
+            if !memoryWorkingSetThreshold.nil? && !memoryWorkingSetThreshold.empty?
+              memoryWorkingSetThresholdFloat = memoryWorkingSetThreshold.to_f
+              @memoryWorkingSetThresholdPercentage = memoryWorkingSetThresholdFloat
+            else
+              @memoryWorkingSetThresholdPercentage = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
+            end
+          rescue => errorStr
+            @log.info "Error getting custom threshold values for resource utilization for mdm metrics, using defaults: #{errorStr}"
+            @cpuUtilThresholdPercentage = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
+            @memoryRssThresholdPercentage = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
+            @memoryWorkingSetThresholdPercentage = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
+            ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+          end
         end
       rescue => e
         @log.info "Error initializing plugin #{e}"
@@ -84,7 +120,7 @@ module Fluent
           if object_name == Constants::OBJECT_NAME_K8S_NODE && @metrics_to_collect_hash.key?(counter_name.downcase)
             # Compute and send % CPU and Memory
             if counter_name == Constants::CPU_USAGE_NANO_CORES
-              metric_name =  Constants::CPU_USAGE_MILLI_CORES
+              metric_name = Constants::CPU_USAGE_MILLI_CORES
               metric_value /= 1000000 #cadvisor record is in nanocores. Convert to mc
               @log.info "Metric_value: #{metric_value} CPU Capacity #{@cpu_capacity}"
               if @cpu_capacity != 0.0
@@ -127,14 +163,13 @@ module Fluent
               end
             end
 
-            # Send this metric only if resource utilization is greater than 95%
+            # Send this metric only if resource utilization is greater than configured threshold
             @log.info "percentage_metric_value for metric: #{metricName} for instance: #{instanceName} percentage: #{percentage_metric_value}"
-            if percentage_metric_value > 95.0
-            # if percentage_metric_value > 1.0
+            if percentage_metric_value > @@metric_name_threshold_name_hash[metricName]
               return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record, metricName, percentage_metric_value, @containerResourceDimensionHash[instanceName])
             else
               return []
-            end #end if block for percentage metric > 95% check
+            end #end if block for percentage metric > configured threshold % check
           else
             return [] #end if block for object type check
           end

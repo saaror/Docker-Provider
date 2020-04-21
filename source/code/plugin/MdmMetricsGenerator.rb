@@ -26,8 +26,8 @@ class MdmMetricsGenerator
   @@metric_name_metric_percentage_name_hash = {
     Constants::CPU_USAGE_MILLI_CORES => "cpuUsagePercentage",
     Constants::CPU_USAGE_NANO_CORES => "cpuUsagePercentage",
-    "memoryRssBytes" => "memoryRssPercentage",
-    "memoryWorkingSetBytes" => "memoryWorkingSetPercentage",
+    Constants::MEMORY_RSS_BYTES => "memoryRssPercentage",
+    Constants::MEMORY_WORKING_SET_BYTES => "memoryWorkingSetPercentage",
   }
 
   def initialize

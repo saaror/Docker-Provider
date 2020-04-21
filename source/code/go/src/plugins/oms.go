@@ -1019,7 +1019,7 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 		Log("ResourceName=%s", ResourceName)
 	}
 
-	// // log runtime info for debug purpose
+	// log runtime info for debug purpose
 	containerRuntime = os.Getenv(ContainerRuntimeEnv)
 	Log("Container Runtime engine %s", containerRuntime)
 

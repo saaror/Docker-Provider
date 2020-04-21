@@ -23,11 +23,7 @@ module Fluent
     @process_incoming_stream = true
     @metrics_to_collect_hash = {}
 
-    @@metric_name_threshold_name_hash = {
-      Constants::CPU_USAGE_NANO_CORES => @cpuUtilThresholdPercentage,
-      Constants::MEMORY_RSS_BYTES => @memoryRssThresholdPercentage,
-      Constants::MEMORY_WORKING_SET_BYTES => @memoryWorkingSetThresholdPercentage,
-    }
+    @@metric_name_threshold_name_hash = {}
 
     def initialize
       super
@@ -64,31 +60,31 @@ module Fluent
             cpuThreshold = ENV["AZMON_MDM_CPU_UTILIZATION_THRESHOLD"]
             if !cpuThreshold.nil? && !cpuThreshold.empty?
               cpuThresholdFloat = cpuThreshold.to_f
-              @cpuUtilThresholdPercentage = cpuThresholdFloat
+              @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES] = cpuThresholdFloat
             else
-              @cpuUtilThresholdPercentage = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
+              @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES] = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
             end
 
             memoryRssThreshold = ENV["AZMON_MDM_MEMORY_RSS_THRESHOLD"]
             if !memoryRssThreshold.nil? && !memoryRssThreshold.empty?
               memoryRssThresholdFloat = memoryRssThreshold.to_f
-              @memoryRssThresholdPercentage = memoryRssThresholdFloat
+              @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES] = memoryRssThresholdFloat
             else
-              @memoryRssThresholdPercentage = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
+              @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES] = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
             end
 
             memoryWorkingSetThreshold = ENV["AZMON_MDM_MEMORY_WORKING_SET_THRESHOLD"]
             if !memoryWorkingSetThreshold.nil? && !memoryWorkingSetThreshold.empty?
               memoryWorkingSetThresholdFloat = memoryWorkingSetThreshold.to_f
-              @memoryWorkingSetThresholdPercentage = memoryWorkingSetThresholdFloat
+              @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES] = memoryWorkingSetThresholdFloat
             else
-              @memoryWorkingSetThresholdPercentage = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
+              @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES] = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
             end
           rescue => errorStr
             @log.info "Error getting custom threshold values for resource utilization for mdm metrics, using defaults: #{errorStr}"
-            @cpuUtilThresholdPercentage = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
-            @memoryRssThresholdPercentage = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
-            @memoryWorkingSetThresholdPercentage = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
+            @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES] = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
+            @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES] = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
+            @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES] = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
             ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
           end
         end
@@ -165,6 +161,7 @@ module Fluent
 
             # Send this metric only if resource utilization is greater than configured threshold
             @log.info "percentage_metric_value for metric: #{metricName} for instance: #{instanceName} percentage: #{percentage_metric_value}"
+            @log.info "@@metric_name_threshold_name_hash for #{metricName}: #{@@metric_name_threshold_name_hash[metricName]}"
             if percentage_metric_value > @@metric_name_threshold_name_hash[metricName]
               return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record, metricName, percentage_metric_value, @containerResourceDimensionHash[instanceName])
             else

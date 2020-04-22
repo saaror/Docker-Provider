@@ -1,5 +1,5 @@
 class MdmAlertTemplates
-  Pod_Metrics_custom_metrics_template = '
+  Pod_metrics_template = '
     {
         "time": "%{timestamp}",
         "data": {
@@ -26,6 +26,35 @@ class MdmAlertTemplates
         }
     }'
 
+    Stable_job_metrics_template = '
+    {
+        "time": "%{timestamp}",
+        "data": {
+            "baseData": {
+                "metric": "%{metricName}",
+                "namespace": "insights.container/pods",
+                "dimNames": [
+                    "controllerName",
+                    "Kubernetes namespace",
+                    "thresholdHours"
+                ],
+                "series": [
+                {
+                    "dimValues": [
+                        "%{controllerNameDimValue}",
+                        "%{namespaceDimValue}",
+                        "6"
+                    ],
+                    "min": %{containerCountMetricValue},
+                    "max": %{containerCountMetricValue},
+                    "sum": %{containerCountMetricValue},
+                    "count": 1
+                }
+                ]
+            }
+        }
+    }'
+
   Container_resource_utilization_template = '
     {
         "time": "%{timestamp}",
@@ -38,7 +67,7 @@ class MdmAlertTemplates
                     "podName",
                     "controllerName",
                     "Kubernetes namespace",
-                    "percentage"
+                    "thresholdPercentage"
                 ],
                 "series": [
                 {

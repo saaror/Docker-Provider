@@ -34,41 +34,6 @@ class MdmMetricsGenerator
   end
 
   class << self
-    # def appendPodMetrics(records, batch_time)
-    #   begin
-    #     @log.info "in appendPodMetrics..."
-    #     @log.info "oom killed container count: #{@oom_killed_container_count_hash.length}"
-    #     if !@oom_killed_container_count_hash.empty?
-    #       @oom_killed_container_count_hash.each { |key, value|
-    #         key_elements = key.split("~~")
-    #         if key_elements.length != 2
-    #           next
-    #         end
-
-    #         # get dimension values by key
-    #         podControllerNameDimValue = key_elements[0]
-    #         podNamespaceDimValue = key_elements[1]
-
-    #         record = MdmAlertTemplates::Oom_killed_container_count_custom_metrics_template % {
-    #           timestamp: batch_time,
-    #           metricName: MdmMetrics::OOM_KILLED_CONTAINER_COUNT,
-    #           controllerNameDimValue: podControllerNameDimValue,
-    #           namespaceDimValue: podNamespaceDimValue,
-    #           containerCountMetricValue: value,
-    #         }
-    #         records.push(JSON.parse(record))
-    #       }
-    #     else
-    #       @log.info "No OOMKilled containers found"
-    #     end
-    #   rescue => errorStr
-    #     @log.info "Error appending pod metrics for metric: #{MdmMetrics::OOM_KILLED_CONTAINER_COUNT} : #{errorStr}"
-    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-    #   end
-    #   @log.info "Done appending PodMetrics for oom killed containers..."
-    #   @oom_killed_container_count_hash = {}
-    #   return records
-    # end
     def populatePodReadyPercentageHash
       begin
         @log.info "in populatePodReadyPercentageHash..."
@@ -114,7 +79,13 @@ class MdmMetricsGenerator
             podControllerNameDimValue = key_elements[0]
             podNamespaceDimValue = key_elements[1]
 
-            record = MdmAlertTemplates::Pod_Metrics_custom_metrics_template % {
+            # Switching templates so that we can add desired dimensions to job metric
+            if metricName == Constants::MDM_STALE_COMPLETED_JOB_COUNT
+              metricsTemplate = MdmAlertTemplates::Stable_job_metrics_template
+            else
+              metricsTemplate = MdmAlertTemplates::Pod_metrics_template
+            end
+            record = metricsTemplate % {
               timestamp: batch_time,
               metricName: metricName,
               controllerNameDimValue: podControllerNameDimValue,
@@ -464,26 +435,5 @@ class MdmMetricsGenerator
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
     end
-
-    # def generatePodMetrics(metricName, podControllerName, podNamespace)
-    #   begin
-    #     @log.info "in generatePodMetrics..."
-    #     # group by distinct dimension values
-    #     dim_key = [podControllerName, podNamespace].join("~~")
-    #     if metricName == Constants::MDM_OOM_KILLED_CONTAINER_COUNT
-    #       @log.info "adding dimension key to oom killed container hash..."
-    #       @oom_killed_container_count_hash[dim_key] = @oom_killed_container_count_hash.key?(dim_key) ? @oom_killed_container_count_hash[dim_key] + 1 : 1
-    #     elsif metricName == Constants::MDM_CONTAINER_RESTART_COUNT
-    #       @log.info "adding dimension key to container restart count hash..."
-    #       @container_restart_count_hash[dim_key] = @container_restart_count_hash.key?(dim_key) ? @container_restart_count_hash[dim_key] + 1 : 1
-    #       # if !@container_restart_count_hash.key?(dim_key) ?
-    #       #   @container_restart_count_hash[dim_key] = metricValue
-    #       # end
-    #     end
-    #   rescue => errorStr
-    #     @log.warn "Error in generatePodMetrics: #{errorStr}"
-    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-    #   end
-    # end
   end
 end

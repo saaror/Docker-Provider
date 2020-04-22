@@ -21,7 +21,7 @@ def parseConfigMap
       puts "config::Successfully parsed mounted config map"
       return parsedConfig
     else
-      puts "config::configmap container-azm-ms-agentconfig for settings not mounted, using defaults"
+      puts "config::configmap container-azm-ms-agentconfig for MDM metrics settings not mounted, using defaults"
       return nil
     end
   rescue => errorStr

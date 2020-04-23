@@ -48,5 +48,5 @@ class Constants
     PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT = "apiserver_request_latencies_summary_count"
     CLIENT_ERROR_CATEGORY = "clientErrors(429)"
     SERVER_ERROR_CATEGORY = "serverErrors(5*)"
-    TELEMETRY_FLUSH_INTERVAL_IN_MINUTES = 10
+    TELEMETRY_FLUSH_INTERVAL_IN_MINUTES = 3
 end

@@ -20,8 +20,10 @@ class MdmMetricsGenerator
   @pod_not_ready_hash = {}
   @pod_ready_percentage_hash = {}
 
-  # @@cpu_usage_milli_cores = "cpuUsageMillicores"
-  # @@cpu_usage_nano_cores = "cpuUsageNanoCores"
+  # Keeping track of metrics for telemetry
+  @containerRestartMetricCount = 0
+  @oomKilledContainerMetricCount = 0
+  @staleJobMetricCount = 0
 
   @@metric_name_metric_percentage_name_hash = {
     Constants::CPU_USAGE_MILLI_CORES => "cpuUsagePercentage",
@@ -31,6 +33,7 @@ class MdmMetricsGenerator
   }
 
   def initialize
+    @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
   end
 
   class << self
@@ -105,23 +108,53 @@ class MdmMetricsGenerator
       return records
     end
 
+    def flushMdmMetricTelemetry
+      begin
+        properties = {}
+        properties["ContainerRestartsSeen"] = (@containerRestartMetricCount.length) > 0 ? true : false
+        properties["OomKilledContainersSeen"] = (@oomKilledContainerMetricCount.length) > 0 ? true : false
+        properties["StaleJobsSeen"] = (@staleJobMetricCount.length) > 0 ? true : false
+        ApplicationInsightsUtility.sendCustomEvent("ContainerMetricsSentEvent", properties)
+        ApplicationInsightsUtility.sendCustomEvent("PodReadyPercentageMetricSentEvent", {})
+      rescue => errorStr
+        @log.info "Error in flushMdmMetricTelemetry: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      @oomKilledContainerMetricCount = 0
+      @containerRestartMetricCount = 0
+      @staleJobMetricCount = 0
+      @metricTelemetryTimeTracker = DateTime.now.to_time.to_i
+      @log.info "Mdm metric telemetry successfully flushed"
+    end
+
     def appendAllPodMetrics(records, batch_time)
       begin
         @log.info "in appendAllPodMetrics..."
-        @log.info "@oom_killed_container_count_hash: #{@oom_killed_container_count_hash}"
+
+        #Keeping track of count for telemetry
+        @oomKilledContainerMetricCount += @oom_killed_container_count_hash.length
         records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
         @oom_killed_container_count_hash = {}
-        @log.info "@container_restart_count_hash: #{@container_restart_count_hash}"
+
+        @containerRestartMetricCount += @container_restart_count_hash.length
         records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
         @container_restart_count_hash = {}
-        @log.info "@stale_job_count_hash: #{@stale_job_count_hash}"
+
+        @staleJobMetricCount += @stale_job_count_hash.length
         records = appendPodMetrics(records, Constants::MDM_STALE_COMPLETED_JOB_COUNT, @stale_job_count_hash, batch_time)
         @stale_job_count_hash = {}
+
         # Computer the percentage here, because we need to do this after all chunks have been processed.
         populatePodReadyPercentageHash
         @log.info "@pod_ready_percentage_hash: #{@pod_ready_percentage_hash}"
         records = appendPodMetrics(records, Constants::MDM_POD_READY_PERCENTAGE, @pod_ready_percentage_hash, batch_time)
         @pod_ready_percentage_hash = {}
+
+        timeDifference = (DateTime.now.to_time.to_i - @@metricTelemetryTimeTracker).abs
+        timeDifferenceInMinutes = timeDifference / 60
+        if (timeDifferenceInMinutes >= 10)
+          flushMdmMetricTelemetry
+        end
       rescue => errorStr
         @log.info "Error in appendAllPodMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
@@ -151,7 +184,7 @@ class MdmMetricsGenerator
           controllerNameDimValue: controllerName,
           namespaceDimValue: podNamespace,
           containerResourceUtilizationPercentage: percentageMetricValue,
-          thresholdPercentageDimValue: thresholdPercentage
+          thresholdPercentageDimValue: thresholdPercentage,
         }
         records.push(JSON.parse(resourceUtilRecord))
       rescue => errorStr
@@ -269,7 +302,7 @@ class MdmMetricsGenerator
             metricName: Constants::MDM_API_SERVER_ERROR_REQUEST,
             codevalue: errorCode,
             errorCategoryValue: errorCodeCategory,
-            requestErrValue: errRequestCount
+            requestErrValue: errRequestCount,
           }
           errorMetricRecord = JSON.parse(apiServerErrMetricRecord)
         end

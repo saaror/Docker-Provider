@@ -45,6 +45,12 @@ module Fluent
         @process_incoming_stream = CustomMetricsUtils.check_custom_metrics_availability(@custom_metrics_azure_regions)
         @metrics_to_collect_hash = build_metrics_hash
         @log.debug "After check_custom_metrics_availability process_incoming_stream #{@process_incoming_stream}"
+        @@containerResourceUtilTelemetryTimeTracker = DateTime.now.to_time.to_i
+
+        # These variables keep track if any resource utilization threshold exceeded in the last 10 minutes
+        @cpuThresholdExceeded = false
+        @memRssThresholdExceeded = false
+        @memWorkingSetThresholdExceeded = false
 
         # initialize cpu and memory limit
         if @process_incoming_stream
@@ -103,6 +109,21 @@ module Fluent
 
     def shutdown
       super
+    end
+
+    def setThresholdExceededTelemetry(metricName)
+      begin
+        if metricName == Constants::CPU_USAGE_NANO_CORES
+          @cpuThresholdExceeded = true
+        elsif metricName == Constants::MEMORY_RSS_BYTES
+          @memRssThresholdExceeded = true
+        elsif metricName == Constants::MEMORY_WORKING_SET_BYTES
+          @memWorkingSetThresholdExceeded = true
+        end
+      rescue => errorStr
+        @log.info "Error in setThresholdExceededTelemetry: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
     end
 
     def filter(tag, time, record)
@@ -164,14 +185,33 @@ module Fluent
             @log.info "@@metric_name_threshold_name_hash for #{metricName}: #{@@metric_name_threshold_name_hash[metricName]}"
             thresholdPercentage = @@metric_name_threshold_name_hash[metricName]
             if percentage_metric_value > thresholdPercentage
-              return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record, 
-                                                                              metricName, 
-                                                                              percentage_metric_value, 
-                                                                              @containerResourceDimensionHash[instanceName],
-                                                                              thresholdPercentage)
+              setThresholdExceededTelemetry(metricName)
+              return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record,
+                                                                               metricName,
+                                                                               percentage_metric_value,
+                                                                               @containerResourceDimensionHash[instanceName],
+                                                                               thresholdPercentage)
             else
               return []
             end #end if block for percentage metric > configured threshold % check
+
+            #Send heartbeat telemetry with threshold percentage as dimensions
+            timeDifference = (DateTime.now.to_time.to_i - @@containerResourceUtilTelemetryTimeTracker).abs
+            timeDifferenceInMinutes = timeDifference / 60
+            if (timeDifferenceInMinutes >= 10)
+              properties = {}
+              properties["cpuThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES]
+              properties["memoryRssThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES]
+              properties["memoryWorkingSetThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES]
+              properties["cpuThresholdExceededInLastFlushInterval"] = @cpuThresholdExceeded
+              properties["memRssThresholdExceededInLastFlushInterval"] = @memRssThresholdExceeded
+              properties["memWSetThresholdExceededInLastFlushInterval"] = @memWorkingSetThresholdExceeded
+              ApplicationInsightsUtility.sendCustomEvent("ContainerResourceUtilMdmHeartBeatEvent", properties)
+              @@containerResourceUtilTelemetryTimeTracker = DateTime.now.to_time.to_i
+              @cpuThresholdExceeded = false
+              @memRssThresholdExceeded = false
+              @memWorkingSetThresholdExceeded = false
+            end
           else
             return [] #end if block for object type check
           end

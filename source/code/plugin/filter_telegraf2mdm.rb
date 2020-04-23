@@ -17,15 +17,8 @@ module Fluent
     config_param :enable_log, :integer, :default => 0
     config_param :log_path, :string, :default => "/var/opt/microsoft/docker-cimprov/log/filter_telegraf2mdm.log"
     config_param :custom_metrics_azure_regions, :string
-    # config_param :metrics_to_collect, :string, :default => "cpuUsageNanoCores,memoryWorkingSetBytes,memoryRssBytes"
-
-    # @@cpu_usage_milli_cores = "cpuUsageMillicores"
-    # @@cpu_usage_nano_cores = "cpuusagenanocores"
-    # @@object_name_k8s_node = "K8SNode"
-    # @@hostName = (OMS::Common.get_hostname)
 
     @process_incoming_stream = true
-    # @metrics_to_collect_hash = {}
 
     def initialize
       super
@@ -45,30 +38,15 @@ module Fluent
       super
       begin
         @process_incoming_stream = CustomMetricsUtils.check_custom_metrics_availability(@custom_metrics_azure_regions)
-        # @metrics_to_collect_hash = build_metrics_hash
         @log.debug "After check_custom_metrics_availability process_incoming_stream #{@process_incoming_stream}"
 
-        # initialize cpu and memory limit
-        if @process_incoming_stream
-          # @cpu_capacity = 0.0
-          # @memory_capacity = 0.0
-          # ensure_cpu_memory_capacity_set
-          # @containerCpuLimitHash = {}
-          # @containerMemoryLimitHash = {}
-          # @containerResourceDimensionHash = {}
+    @@telegrafMetricsTelemetryTimeTracker = DateTime.now.to_time.to_i
+
         end
       rescue => errorStr
         @log.info "Error initializing plugin #{errorStr}"
       end
     end
-
-    # def build_metrics_hash
-    #   @log.debug "Building Hash of Metrics to Collect"
-    #   metrics_to_collect_arr = @metrics_to_collect.split(",").map(&:strip)
-    #   metrics_hash = metrics_to_collect_arr.map { |x| [x.downcase, true] }.to_h
-    #   @log.info "Metrics Collected : #{metrics_hash}"
-    #   return metrics_hash
-    # end
 
     def shutdown
       super
@@ -76,9 +54,7 @@ module Fluent
 
     def filter(tag, time, record)
       begin
-        # if @process_incoming_stream
-        # end #end if block for process incoming stream check
-        @log.info "tag: #{tag}, time: #{time}, record: #{record}"
+        # @log.info "tag: #{tag}, time: #{time}, record: #{record}"
         if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_DISK_METRICS
           return MdmMetricsGenerator.getDiskUsageMetricRecords(record)
         end
@@ -109,6 +85,15 @@ module Fluent
             new_es.add(time, filtered_record) if filtered_record
           } if filtered_records
         }
+
+      #Send heartbeat telemetry if flush interval is exceeded
+      timeDifference = (DateTime.now.to_time.to_i - @@telegrafMetricsTelemetryTimeTracker).abs
+      timeDifferenceInMinutes = timeDifference / 60
+      if (timeDifferenceInMinutes >= 10)
+        properties = {}
+        ApplicationInsightsUtility.sendCustomEvent("TelegrafMdmMetricsHeartBeatEvent", properties)
+        @@telegrafMetricsTelemetryTimeTracker = DateTime.now.to_time.to_i
+      end      
       rescue => e
         @log.info "Error in filter_stream #{e.message}"
       end

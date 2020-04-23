@@ -114,8 +114,8 @@ class MdmMetricsGenerator
         properties["ContainerRestartsSeen"] = (@containerRestartMetricCount.length) > 0 ? true : false
         properties["OomKilledContainersSeen"] = (@oomKilledContainerMetricCount.length) > 0 ? true : false
         properties["StaleJobsSeen"] = (@staleJobMetricCount.length) > 0 ? true : false
-        ApplicationInsightsUtility.sendCustomEvent("ContainerMetricsSentEvent", properties)
-        ApplicationInsightsUtility.sendCustomEvent("PodReadyPercentageMetricSentEvent", {})
+        ApplicationInsightsUtility.sendCustomEvent("ContainerMdmMetricsSentEvent", properties)
+        ApplicationInsightsUtility.sendCustomEvent("PodReadyPercentageMdmMetricSentEvent", {})
       rescue => errorStr
         @log.info "Error in flushMdmMetricTelemetry: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)

@@ -89,7 +89,7 @@ module Fluent
       #Send heartbeat telemetry if flush interval is exceeded
       timeDifference = (DateTime.now.to_time.to_i - @@telegrafMetricsTelemetryTimeTracker).abs
       timeDifferenceInMinutes = timeDifference / 60
-      if (timeDifferenceInMinutes >= 10)
+      if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
         properties = {}
         ApplicationInsightsUtility.sendCustomEvent("TelegrafMdmMetricsHeartBeatEvent", properties)
         @@telegrafMetricsTelemetryTimeTracker = DateTime.now.to_time.to_i

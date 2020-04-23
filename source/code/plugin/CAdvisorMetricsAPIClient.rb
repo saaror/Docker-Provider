@@ -217,7 +217,7 @@ class CAdvisorMetricsAPIClient
                 # we can only do this much now. Ideally would like to use the docker image repository to find our pods/containers
                 # cadvisor does not have pod/container metadata. so would need more work to cache as pv & use
                 if (podName.downcase.start_with?("omsagent-") && podNamespace.eql?("kube-system") && containerName.downcase.start_with?("omsagent") && metricNametoReturn.eql?(Constants::CPU_USAGE_NANO_CORES))
-                  if (timeDifferenceInMinutes >= 10)
+                  if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
                     telemetryProps = {}
                     telemetryProps["PodName"] = podName
                     telemetryProps["ContainerName"] = containerName
@@ -251,7 +251,7 @@ class CAdvisorMetricsAPIClient
           end
         end
         # reset time outside pod iterator as we use one timer per metric for 2 pods (ds & rs)
-        if (timeDifferenceInMinutes >= 10 && metricNametoReturn.eql?("cpuUsageNanoCores"))
+        if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES && metricNametoReturn.eql?("cpuUsageNanoCores"))
           @@telemetryCpuMetricTimeTracker = DateTime.now.to_time.to_i
         end
       rescue => error
@@ -514,7 +514,7 @@ class CAdvisorMetricsAPIClient
                 # we can only do this much now. Ideally would like to use the docker image repository to find our pods/containers
                 # cadvisor does not have pod/container metadata. so would need more work to cache as pv & use
                 if (podName.downcase.start_with?("omsagent-") && podNamespace.eql?("kube-system") && containerName.downcase.start_with?("omsagent") && metricNametoReturn.eql?(Constants::MEMORY_RSS_BYTES))
-                  if (timeDifferenceInMinutes >= 10)
+                  if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
                     telemetryProps = {}
                     telemetryProps["PodName"] = podName
                     telemetryProps["ContainerName"] = containerName
@@ -529,7 +529,7 @@ class CAdvisorMetricsAPIClient
           end
         end
         # reset time outside pod iterator as we use one timer per metric for 2 pods (ds & rs)
-        if (timeDifferenceInMinutes >= 10 && metricNametoReturn.eql?(Constants::MEMORY_RSS_BYTES))
+        if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES && metricNametoReturn.eql?(Constants::MEMORY_RSS_BYTES))
           @@telemetryMemoryMetricTimeTracker = DateTime.now.to_time.to_i
         end
       rescue => error

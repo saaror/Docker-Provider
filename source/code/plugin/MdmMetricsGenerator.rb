@@ -152,7 +152,7 @@ class MdmMetricsGenerator
 
         timeDifference = (DateTime.now.to_time.to_i - @@metricTelemetryTimeTracker).abs
         timeDifferenceInMinutes = timeDifference / 60
-        if (timeDifferenceInMinutes >= 10)
+        if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
           flushMdmMetricTelemetry
         end
       rescue => errorStr

@@ -198,7 +198,7 @@ module Fluent
             #Send heartbeat telemetry with threshold percentage as dimensions
             timeDifference = (DateTime.now.to_time.to_i - @@containerResourceUtilTelemetryTimeTracker).abs
             timeDifferenceInMinutes = timeDifference / 60
-            if (timeDifferenceInMinutes >= 10)
+            if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
               properties = {}
               properties["cpuThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES]
               properties["memoryRssThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES]

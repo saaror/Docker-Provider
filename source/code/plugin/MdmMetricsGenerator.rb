@@ -32,8 +32,9 @@ class MdmMetricsGenerator
     Constants::MEMORY_WORKING_SET_BYTES => "memoryWorkingSetPercentage",
   }
 
+  @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
+
   def initialize
-    @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
   end
 
   class << self

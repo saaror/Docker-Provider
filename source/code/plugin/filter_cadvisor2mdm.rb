@@ -126,6 +126,31 @@ module Fluent
       end
     end
 
+    def flushMetricTelemetry
+      begin
+        #Send heartbeat telemetry with threshold percentage as dimensions
+        timeDifference = (DateTime.now.to_time.to_i - @@containerResourceUtilTelemetryTimeTracker).abs
+        timeDifferenceInMinutes = timeDifference / 60
+        if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
+          properties = {}
+          properties["cpuThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES]
+          properties["memoryRssThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES]
+          properties["memoryWorkingSetThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES]
+          properties["cpuThresholdExceededInLastFlushInterval"] = @cpuThresholdExceeded
+          properties["memRssThresholdExceededInLastFlushInterval"] = @memRssThresholdExceeded
+          properties["memWSetThresholdExceededInLastFlushInterval"] = @memWorkingSetThresholdExceeded
+          ApplicationInsightsUtility.sendCustomEvent("ContainerResourceUtilMdmHeartBeatEvent", properties)
+          @@containerResourceUtilTelemetryTimeTracker = DateTime.now.to_time.to_i
+          @cpuThresholdExceeded = false
+          @memRssThresholdExceeded = false
+          @memWorkingSetThresholdExceeded = false
+        end
+      rescue => errorStr
+        @log.info "Error in flushMetricTelemetry: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+    end
+
     def filter(tag, time, record)
       begin
         if @process_incoming_stream
@@ -186,6 +211,7 @@ module Fluent
             thresholdPercentage = @@metric_name_threshold_name_hash[metricName]
             if percentage_metric_value > thresholdPercentage
               setThresholdExceededTelemetry(metricName)
+              flushMetricTelemetry
               return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record,
                                                                                metricName,
                                                                                percentage_metric_value,
@@ -194,24 +220,6 @@ module Fluent
             else
               return []
             end #end if block for percentage metric > configured threshold % check
-
-            #Send heartbeat telemetry with threshold percentage as dimensions
-            timeDifference = (DateTime.now.to_time.to_i - @@containerResourceUtilTelemetryTimeTracker).abs
-            timeDifferenceInMinutes = timeDifference / 60
-            if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
-              properties = {}
-              properties["cpuThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES]
-              properties["memoryRssThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES]
-              properties["memoryWorkingSetThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES]
-              properties["cpuThresholdExceededInLastFlushInterval"] = @cpuThresholdExceeded
-              properties["memRssThresholdExceededInLastFlushInterval"] = @memRssThresholdExceeded
-              properties["memWSetThresholdExceededInLastFlushInterval"] = @memWorkingSetThresholdExceeded
-              ApplicationInsightsUtility.sendCustomEvent("ContainerResourceUtilMdmHeartBeatEvent", properties)
-              @@containerResourceUtilTelemetryTimeTracker = DateTime.now.to_time.to_i
-              @cpuThresholdExceeded = false
-              @memRssThresholdExceeded = false
-              @memWorkingSetThresholdExceeded = false
-            end
           else
             return [] #end if block for object type check
           end

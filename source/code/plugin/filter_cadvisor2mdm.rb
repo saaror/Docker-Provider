@@ -65,7 +65,8 @@ module Fluent
           begin
             cpuThreshold = ENV["AZMON_MDM_CPU_UTILIZATION_THRESHOLD"]
             if !cpuThreshold.nil? && !cpuThreshold.empty?
-              cpuThresholdFloat = cpuThreshold.to_f
+              #Rounding this to 2 decimal places, since this value is user configurable
+              cpuThresholdFloat = (cpuThreshold.to_f).round(2)
               @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES] = cpuThresholdFloat
             else
               @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES] = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
@@ -73,7 +74,7 @@ module Fluent
 
             memoryRssThreshold = ENV["AZMON_MDM_MEMORY_RSS_THRESHOLD"]
             if !memoryRssThreshold.nil? && !memoryRssThreshold.empty?
-              memoryRssThresholdFloat = memoryRssThreshold.to_f
+              memoryRssThresholdFloat = (memoryRssThreshold.to_f).round(2)
               @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES] = memoryRssThresholdFloat
             else
               @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES] = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
@@ -81,7 +82,7 @@ module Fluent
 
             memoryWorkingSetThreshold = ENV["AZMON_MDM_MEMORY_WORKING_SET_THRESHOLD"]
             if !memoryWorkingSetThreshold.nil? && !memoryWorkingSetThreshold.empty?
-              memoryWorkingSetThresholdFloat = memoryWorkingSetThreshold.to_f
+              memoryWorkingSetThresholdFloat = (memoryWorkingSetThreshold.to_f).round(2)
               @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES] = memoryWorkingSetThresholdFloat
             else
               @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES] = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD

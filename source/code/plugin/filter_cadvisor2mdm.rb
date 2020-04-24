@@ -48,9 +48,9 @@ module Fluent
         @@containerResourceUtilTelemetryTimeTracker = DateTime.now.to_time.to_i
 
         # These variables keep track if any resource utilization threshold exceeded in the last 10 minutes
-        @cpuThresholdExceeded = false
-        @memRssThresholdExceeded = false
-        @memWorkingSetThresholdExceeded = false
+        @containersExceededCpuThreshold = 0
+        @containersExceededMemRssThreshold = 0
+        @containersExceededMemWorkingSetThreshold = 0
 
         # initialize cpu and memory limit
         if @process_incoming_stream
@@ -115,11 +115,11 @@ module Fluent
     def setThresholdExceededTelemetry(metricName)
       begin
         if metricName == Constants::CPU_USAGE_NANO_CORES
-          @cpuThresholdExceeded = true
+          @containersExceededCpuThreshold += 1
         elsif metricName == Constants::MEMORY_RSS_BYTES
-          @memRssThresholdExceeded = true
+          @containersExceededMemRssThreshold += 1
         elsif metricName == Constants::MEMORY_WORKING_SET_BYTES
-          @memWorkingSetThresholdExceeded = true
+          @containersExceededMemWorkingSetThreshold += 1
         end
       rescue => errorStr
         @log.info "Error in setThresholdExceededTelemetry: #{errorStr}"
@@ -134,17 +134,17 @@ module Fluent
         timeDifferenceInMinutes = timeDifference / 60
         if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
           properties = {}
-          properties["cpuThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES]
-          properties["memoryRssThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES]
-          properties["memoryWorkingSetThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES]
-          properties["cpuThresholdExceededInLastFlushInterval"] = @cpuThresholdExceeded
-          properties["memRssThresholdExceededInLastFlushInterval"] = @memRssThresholdExceeded
-          properties["memWSetThresholdExceededInLastFlushInterval"] = @memWorkingSetThresholdExceeded
+          properties["CpuThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES]
+          properties["MemoryRssThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES]
+          properties["MemoryWorkingSetThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES]
+          properties["ContainersExceededCpuThreshold"] = @containersExceededCpuThreshold
+          properties["ContainersExceededMemRssThreshold"] = @containersExceededMemRssThreshold
+          properties["ContainersExceededMemWSetThreshold"] = @containersExceededMemWorkingSetThreshold
           ApplicationInsightsUtility.sendCustomEvent("ContainerResourceUtilMdmHeartBeatEvent", properties)
           @@containerResourceUtilTelemetryTimeTracker = DateTime.now.to_time.to_i
-          @cpuThresholdExceeded = false
-          @memRssThresholdExceeded = false
-          @memWorkingSetThresholdExceeded = false
+          @containersExceededCpuThreshold = 0
+          @containersExceededMemRssThreshold = 0
+          @containersExceededMemWorkingSetThreshold = 0
         end
       rescue => errorStr
         @log.info "Error in flushMetricTelemetry: #{errorStr}"

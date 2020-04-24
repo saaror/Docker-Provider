@@ -26,10 +26,10 @@ class MdmMetricsGenerator
   @staleJobMetricCount = 0
 
   @@metric_name_metric_percentage_name_hash = {
-    Constants::CPU_USAGE_MILLI_CORES => "cpuUsagePercentage",
-    Constants::CPU_USAGE_NANO_CORES => "cpuUsagePercentage",
-    Constants::MEMORY_RSS_BYTES => "memoryRssPercentage",
-    Constants::MEMORY_WORKING_SET_BYTES => "memoryWorkingSetPercentage",
+    Constants::CPU_USAGE_MILLI_CORES => Constants::MDM_CONTAINER_CPU_UTILIZATION_METRIC,
+    Constants::CPU_USAGE_NANO_CORES => Constants::MDM_CONTAINER_CPU_UTILIZATION_METRIC,
+    Constants::MEMORY_RSS_BYTES => Constants::MDM_CONTAINER_MEMORY_RSS_UTILIZATION_METRIC,
+    Constants::MEMORY_WORKING_SET_BYTES => Constants::MDM_CONTAINER_MEMORY_WORKING_SET_UTILIZATION_METRIC,
   }
 
   @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
@@ -112,9 +112,10 @@ class MdmMetricsGenerator
     def flushMdmMetricTelemetry
       begin
         properties = {}
-        properties["ContainerRestartsSeen"] = (@containerRestartMetricCount.length) > 0 ? true : false
-        properties["OomKilledContainersSeen"] = (@oomKilledContainerMetricCount.length) > 0 ? true : false
-        properties["StaleJobsSeen"] = (@staleJobMetricCount.length) > 0 ? true : false
+        # Send cumulative count for 10 minutes
+        properties["PodsWithContainerRestarts"] = @containerRestartMetricCount
+        properties["PodsWithOomKilledContainers"] = @oomKilledContainerMetricCount
+        properties["PodsWithOldCompletedJobs"] = @staleJobMetricCount
         ApplicationInsightsUtility.sendCustomEvent("ContainerMdmMetricsSentEvent", properties)
         ApplicationInsightsUtility.sendCustomEvent("PodReadyPercentageMdmMetricSentEvent", {})
       rescue => errorStr

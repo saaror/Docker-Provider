@@ -15,15 +15,18 @@ class Constants
     REASON_OOM_KILLED = "oomkilled"
 
     # MDM Metric names
-    MDM_OOM_KILLED_CONTAINER_COUNT = "oomKilledContainerCount"
-    MDM_CONTAINER_RESTART_COUNT = "containerRestartCount"
-    MDM_POD_READY_PERCENTAGE = "podReadyPercentage"
-    MDM_STALE_COMPLETED_JOB_COUNT = "staleCompletedJobCount"
-    MDM_DISK_USED_PERCENTAGE = "diskUsedPercentage"
-    MDM_NETWORK_ERR_IN = "networkErrIn"
-    MDM_NETWORK_ERR_OUT = "networkErrOut"
-    MDM_API_SERVER_ERROR_REQUEST = "errorRequestCount"
-    MDM_API_SERVER_REQUEST_LATENCIES = "requestLatenciesMS"
+    MDM_OOM_KILLED_CONTAINER_COUNT = "OomKilledContainerCount"
+    MDM_CONTAINER_RESTART_COUNT = "ContainerRestartCount"
+    MDM_POD_READY_PERCENTAGE = "PodReadyPercentage"
+    MDM_STALE_COMPLETED_JOB_COUNT = "CompletedJobOlderThanHours"
+    MDM_DISK_USED_PERCENTAGE = "DiskUsedPercentage"
+    MDM_NETWORK_ERR_IN = "NetworkErrIn"
+    MDM_NETWORK_ERR_OUT = "NetworkErrOut"
+    MDM_API_SERVER_ERROR_REQUEST = "ErrorRequestCount"
+    MDM_API_SERVER_REQUEST_LATENCIES = "RequestLatenciesMS"
+    MDM_CONTAINER_CPU_UTILIZATION_METRIC = "CpuExceededPercentage"
+    MDM_CONTAINER_MEMORY_RSS_UTILIZATION_METRIC = "MemoryRssExceededPercentage"
+    MDM_CONTAINER_MEMORY_WORKING_SET_UTILIZATION_METRIC = "MemoryWorkingSetExceededPercentage"
 
 
     CONTAINER_TERMINATED_RECENTLY_IN_MINUTES = 5

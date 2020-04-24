@@ -61,7 +61,7 @@ class MdmAlertTemplates
         "data": {
             "baseData": {
                 "metric": "%{metricName}",
-                "namespace": "insights.container/pods",
+                "namespace": "insights.container/containers",
                 "dimNames": [
                     "containerName",
                     "podName",

@@ -25,7 +25,14 @@ class MdmMetricsGenerator
   # @oomKilledContainerMetricCount = 0
   # @staleJobMetricCount = 0
 
-  @@metric_name_metric_percentage_name_hash = {
+
+  @@node_metric_name_metric_percentage_name_hash = {
+    Constants::CPU_USAGE_MILLI_CORES => Constants::MDM_NODE_CPU_USAGE_PERCENTAGE,
+    Constants::MEMORY_RSS_BYTES => Constants::MDM_NODE_MEMORY_RSS_PERCENTAGE,
+    Constants::MEMORY_WORKING_SET_BYTES => Constants::MDM_NODE_MEMORY_WORKING_SET_PERCENTAGE,
+  }
+
+  @@container_metric_name_metric_percentage_name_hash = {
     Constants::CPU_USAGE_MILLI_CORES => Constants::MDM_CONTAINER_CPU_UTILIZATION_METRIC,
     Constants::CPU_USAGE_NANO_CORES => Constants::MDM_CONTAINER_CPU_UTILIZATION_METRIC,
     Constants::MEMORY_RSS_BYTES => Constants::MDM_CONTAINER_MEMORY_RSS_UTILIZATION_METRIC,
@@ -131,10 +138,10 @@ class MdmMetricsGenerator
         @log.info "Error in flushMdmMetricTelemetry: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
-      @oomKilledContainerMetricCount = 0
-      @containerRestartMetricCount = 0
-      @staleJobMetricCount = 0
-      @metricTelemetryTimeTracker = DateTime.now.to_time.to_i
+      # @oomKilledContainerMetricCount = 0
+      # @containerRestartMetricCount = 0
+      # @staleJobMetricCount = 0
+      @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
       @log.info "Mdm metric telemetry successfully flushed"
     end
 
@@ -194,7 +201,7 @@ class MdmMetricsGenerator
 
         resourceUtilRecord = MdmAlertTemplates::Container_resource_utilization_template % {
           timestamp: record["DataItems"][0]["Timestamp"],
-          metricName: @@metric_name_metric_percentage_name_hash[metricName],
+          metricName: @@container_metric_name_metric_percentage_name_hash[metricName],
           containerNameDimValue: containerName,
           podNameDimValue: podName,
           controllerNameDimValue: controllerName,
@@ -420,7 +427,7 @@ class MdmMetricsGenerator
         if !percentage_metric_value.nil?
           additional_record = MdmAlertTemplates::Node_resource_metrics_template % {
             timestamp: record["DataItems"][0]["Timestamp"],
-            metricName: @@metric_name_metric_percentage_name_hash[metric_name],
+            metricName: @@node_metric_name_metric_percentage_name_hash[metric_name],
             hostvalue: record["DataItems"][0]["Host"],
             objectnamevalue: record["DataItems"][0]["ObjectName"],
             instancenamevalue: record["DataItems"][0]["InstanceName"],

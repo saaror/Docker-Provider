@@ -211,9 +211,11 @@ module Fluent
             @log.info "percentage_metric_value for metric: #{metricName} for instance: #{instanceName} percentage: #{percentage_metric_value}"
             @log.info "@@metric_name_threshold_name_hash for #{metricName}: #{@@metric_name_threshold_name_hash[metricName]}"
             thresholdPercentage = @@metric_name_threshold_name_hash[metricName]
+
+            # Flushing telemetry here since, we return as soon as we generate the metric
+            flushMetricTelemetry
             if percentage_metric_value > thresholdPercentage
               setThresholdExceededTelemetry(metricName)
-              flushMetricTelemetry
               return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record,
                                                                                metricName,
                                                                                percentage_metric_value,

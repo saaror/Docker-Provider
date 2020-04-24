@@ -88,7 +88,7 @@ module Fluent
         timeDifferenceInMinutes = timeDifference / 60
         if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
           properties = {}
-          ApplicationInsightsUtility.sendCustomEvent("TelegrafMdmMetricsHeartBeatEvent", properties)
+          ApplicationInsightsUtility.sendCustomEvent(Constants::TELEGRAF_METRICS_HEART_BEAT_EVENT, properties)
           @@telegrafMetricsTelemetryTimeTracker = DateTime.now.to_time.to_i
         end
       rescue => e

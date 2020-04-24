@@ -21,9 +21,9 @@ class MdmMetricsGenerator
   @pod_ready_percentage_hash = {}
 
   # Keeping track of metrics for telemetry
-  @containerRestartMetricCount = 0
-  @oomKilledContainerMetricCount = 0
-  @staleJobMetricCount = 0
+  # @containerRestartMetricCount = 0
+  # @oomKilledContainerMetricCount = 0
+  # @staleJobMetricCount = 0
 
   @@metric_name_metric_percentage_name_hash = {
     Constants::CPU_USAGE_MILLI_CORES => Constants::MDM_CONTAINER_CPU_UTILIZATION_METRIC,
@@ -112,12 +112,21 @@ class MdmMetricsGenerator
     def flushMdmMetricTelemetry
       begin
         properties = {}
-        # Send cumulative count for 10 minutes
-        properties["PodsWithContainerRestarts"] = @containerRestartMetricCount
-        properties["PodsWithOomKilledContainers"] = @oomKilledContainerMetricCount
-        properties["PodsWithOldCompletedJobs"] = @staleJobMetricCount
-        ApplicationInsightsUtility.sendCustomEvent("ContainerMdmMetricsSentEvent", properties)
-        ApplicationInsightsUtility.sendCustomEvent("PodReadyPercentageMdmMetricSentEvent", {})
+        # Getting the sum of all values in the hash to send a count to telemetry
+        containerRestartHashValues = @container_restart_count_hash.values
+        containerRestartMetricCount = containerRestartHashValues.inject(0){|sum,x| sum + x }
+
+        oomKilledContainerHashValues = @oom_killed_container_count_hash.values 
+        oomKilledContainerMetricCount = oomKilledContainerHashValues.inject(0){|sum,x| sum + x }
+
+        staleJobHashValues = @stale_job_count_hash.values
+        staleJobMetricCount = staleJobHashValues.inject(0){|sum,x| sum + x }
+
+        properties["ContainerRestarts"] = containerRestartMetricCount
+        properties["OomKilledContainers"] = oomKilledContainerMetricCount
+        properties["OldCompletedJobs"] = staleJobMetricCount
+        ApplicationInsightsUtility.sendCustomEvent(Constants::CONTAINER_METRICS_HEART_BEAT_EVENT, properties)
+        ApplicationInsightsUtility.sendCustomEvent(Constants::POD_READY_PERCENTAGE_HEART_BEAT_EVENT, {})
       rescue => errorStr
         @log.info "Error in flushMdmMetricTelemetry: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
@@ -134,29 +143,34 @@ class MdmMetricsGenerator
         @log.info "in appendAllPodMetrics..."
 
         #Keeping track of count for telemetry
-        @oomKilledContainerMetricCount += @oom_killed_container_count_hash.length
+        # @oomKilledContainerMetricCount = @oom_killed_container_count_hash.length
         records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
-        @oom_killed_container_count_hash = {}
+        # @oom_killed_container_count_hash = {}
 
-        @containerRestartMetricCount += @container_restart_count_hash.length
+        # @containerRestartMetricCount = @container_restart_count_hash.length
         records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
-        @container_restart_count_hash = {}
+        # @container_restart_count_hash = {}
 
-        @staleJobMetricCount += @stale_job_count_hash.length
+        # @staleJobMetricCount = @stale_job_count_hash.length
         records = appendPodMetrics(records, Constants::MDM_STALE_COMPLETED_JOB_COUNT, @stale_job_count_hash, batch_time)
-        @stale_job_count_hash = {}
+        # @stale_job_count_hash = {}
 
         # Computer the percentage here, because we need to do this after all chunks have been processed.
         populatePodReadyPercentageHash
         @log.info "@pod_ready_percentage_hash: #{@pod_ready_percentage_hash}"
         records = appendPodMetrics(records, Constants::MDM_POD_READY_PERCENTAGE, @pod_ready_percentage_hash, batch_time)
-        @pod_ready_percentage_hash = {}
+        # @pod_ready_percentage_hash = {}
 
         timeDifference = (DateTime.now.to_time.to_i - @@metricTelemetryTimeTracker).abs
         timeDifferenceInMinutes = timeDifference / 60
         if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
           flushMdmMetricTelemetry
         end
+        @oom_killed_container_count_hash = {}
+        @container_restart_count_hash = {}
+        @stale_job_count_hash = {}
+        @pod_ready_percentage_hash = {}
+
       rescue => errorStr
         @log.info "Error in appendAllPodMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)

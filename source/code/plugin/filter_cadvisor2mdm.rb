@@ -48,9 +48,9 @@ module Fluent
         @@containerResourceUtilTelemetryTimeTracker = DateTime.now.to_time.to_i
 
         # These variables keep track if any resource utilization threshold exceeded in the last 10 minutes
-        @containersExceededCpuThreshold = 0
-        @containersExceededMemRssThreshold = 0
-        @containersExceededMemWorkingSetThreshold = 0
+        @containersExceededCpuThreshold = false
+        @containersExceededMemRssThreshold = false
+        @containersExceededMemWorkingSetThreshold = false
 
         # initialize cpu and memory limit
         if @process_incoming_stream
@@ -115,11 +115,11 @@ module Fluent
     def setThresholdExceededTelemetry(metricName)
       begin
         if metricName == Constants::CPU_USAGE_NANO_CORES
-          @containersExceededCpuThreshold += 1
+          @containersExceededCpuThreshold = true
         elsif metricName == Constants::MEMORY_RSS_BYTES
-          @containersExceededMemRssThreshold += 1
+          @containersExceededMemRssThreshold = true
         elsif metricName == Constants::MEMORY_WORKING_SET_BYTES
-          @containersExceededMemWorkingSetThreshold += 1
+          @containersExceededMemWorkingSetThreshold = true
         end
       rescue => errorStr
         @log.info "Error in setThresholdExceededTelemetry: #{errorStr}"
@@ -137,14 +137,15 @@ module Fluent
           properties["CpuThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::CPU_USAGE_NANO_CORES]
           properties["MemoryRssThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_RSS_BYTES]
           properties["MemoryWorkingSetThresholdPercentage"] = @@metric_name_threshold_name_hash[Constants::MEMORY_WORKING_SET_BYTES]
-          properties["ContainersExceededCpuThreshold"] = @containersExceededCpuThreshold
-          properties["ContainersExceededMemRssThreshold"] = @containersExceededMemRssThreshold
-          properties["ContainersExceededMemWSetThreshold"] = @containersExceededMemWorkingSetThreshold
-          ApplicationInsightsUtility.sendCustomEvent("ContainerResourceUtilMdmHeartBeatEvent", properties)
+          # Keeping track of any containers that have exceeded threshold in the last flush interval
+          properties["CpuThresholdExceededInLastFlushInterval"] = @containersExceededCpuThreshold
+          properties["MemRssThresholdExceededInLastFlushInterval"] = @containersExceededMemRssThreshold
+          properties["MemWSetThresholdExceededInLastFlushInterval"] = @containersExceededMemWorkingSetThreshold
+          ApplicationInsightsUtility.sendCustomEvent(Constants::CONTAINER_RESOURCE_UTIL_HEART_BEAT_EVENT, properties)
           @@containerResourceUtilTelemetryTimeTracker = DateTime.now.to_time.to_i
-          @containersExceededCpuThreshold = 0
-          @containersExceededMemRssThreshold = 0
-          @containersExceededMemWorkingSetThreshold = 0
+          @containersExceededCpuThreshold = false
+          @containersExceededMemRssThreshold = false
+          @containersExceededMemWorkingSetThreshold = false
         end
       rescue => errorStr
         @log.info "Error in flushMetricTelemetry: #{errorStr}"

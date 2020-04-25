@@ -51,6 +51,9 @@ class Constants
     PROM_API_SERVER_REQ_COUNT = "apiserver_request_count"
     PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM = "apiserver_request_latencies_summary_sum"
     PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT = "apiserver_request_latencies_summary_count"
+    API_SERVER_REQUEST_VERB_GET = "get"
+    API_SERVER_REQUEST_VERB_PUT = "put"
+
     CLIENT_ERROR_CATEGORY = "clientErrors(429)"
     SERVER_ERROR_CATEGORY = "serverErrors(5*)"
 

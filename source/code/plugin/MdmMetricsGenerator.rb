@@ -21,10 +21,10 @@ class MdmMetricsGenerator
   @pod_ready_percentage_hash = {}
 
   # Keeping track of metrics for telemetry
-  # @containerRestartMetricCount = 0
-  # @oomKilledContainerMetricCount = 0
-  # @staleJobMetricCount = 0
-
+  @api_server_client_error_requests = 0
+  @api_server_server_error_requests = 0
+  @api_server_get_request_avg_latency = 0
+  @api_server_put_request_avg_latency = 0
 
   @@node_metric_name_metric_percentage_name_hash = {
     Constants::CPU_USAGE_MILLI_CORES => Constants::MDM_NODE_CPU_USAGE_PERCENTAGE,
@@ -39,7 +39,8 @@ class MdmMetricsGenerator
     Constants::MEMORY_WORKING_SET_BYTES => Constants::MDM_CONTAINER_MEMORY_WORKING_SET_UTILIZATION_METRIC,
   }
 
-  @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
+  # @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
+  @apiServerErrorRequestTelemetryTimeTracker = DateTime.now.to_time.to_i
 
   def initialize
   end
@@ -116,18 +117,18 @@ class MdmMetricsGenerator
       return records
     end
 
-    def flushMdmMetricTelemetry
+    def flushPodMdmMetricTelemetry
       begin
         properties = {}
         # Getting the sum of all values in the hash to send a count to telemetry
         containerRestartHashValues = @container_restart_count_hash.values
-        containerRestartMetricCount = containerRestartHashValues.inject(0){|sum,x| sum + x }
+        containerRestartMetricCount = containerRestartHashValues.inject(0) { |sum, x| sum + x }
 
-        oomKilledContainerHashValues = @oom_killed_container_count_hash.values 
-        oomKilledContainerMetricCount = oomKilledContainerHashValues.inject(0){|sum,x| sum + x }
+        oomKilledContainerHashValues = @oom_killed_container_count_hash.values
+        oomKilledContainerMetricCount = oomKilledContainerHashValues.inject(0) { |sum, x| sum + x }
 
         staleJobHashValues = @stale_job_count_hash.values
-        staleJobMetricCount = staleJobHashValues.inject(0){|sum,x| sum + x }
+        staleJobMetricCount = staleJobHashValues.inject(0) { |sum, x| sum + x }
 
         properties["ContainerRestarts"] = containerRestartMetricCount
         properties["OomKilledContainers"] = oomKilledContainerMetricCount
@@ -141,8 +142,34 @@ class MdmMetricsGenerator
       # @oomKilledContainerMetricCount = 0
       # @containerRestartMetricCount = 0
       # @staleJobMetricCount = 0
-      @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
-      @log.info "Mdm metric telemetry successfully flushed"
+      # @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
+      @log.info "Mdm pod metric telemetry successfully flushed"
+    end
+
+    def flushTelegrafMdmMetricTelemetry
+      begin
+        properties = {}
+        properties["ApiServerRequestClientErrors"] = @api_server_client_error_requests
+        properties["ApiServerRequestServerErrors"] = @api_server_server_error_requests
+        properties["ApiServerGetRequestAverageLatencyMs"] = @api_server_get_request_avg_latency
+        properties["ApiServerPutRequestAverageLatencyMs"] = @api_server_put_request_avg_latency
+        ApplicationInsightsUtility.sendCustomEvent(Constants::TELEGRAF_METRICS_HEART_BEAT_EVENT, properties)
+      rescue => errorStr
+        @log.info "Error in flushTelegrafMdmMetricTelemetry: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      #Resetting these values to 0 after flushing telemetry
+      @api_server_client_error_requests = 0
+      @api_server_server_error_requests = 0
+      @api_server_get_request_avg_latency = 0
+      @api_server_put_request_avg_latency = 0
+    end
+
+    def clearPodHashes
+      @oom_killed_container_count_hash = {}
+      @container_restart_count_hash = {}
+      @stale_job_count_hash = {}
+      @pod_ready_percentage_hash = {}
     end
 
     def appendAllPodMetrics(records, batch_time)
@@ -168,16 +195,15 @@ class MdmMetricsGenerator
         records = appendPodMetrics(records, Constants::MDM_POD_READY_PERCENTAGE, @pod_ready_percentage_hash, batch_time)
         # @pod_ready_percentage_hash = {}
 
-        timeDifference = (DateTime.now.to_time.to_i - @@metricTelemetryTimeTracker).abs
-        timeDifferenceInMinutes = timeDifference / 60
-        if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
-          flushMdmMetricTelemetry
-        end
-        @oom_killed_container_count_hash = {}
-        @container_restart_count_hash = {}
-        @stale_job_count_hash = {}
-        @pod_ready_percentage_hash = {}
-
+        # timeDifference = (DateTime.now.to_time.to_i - @@metricTelemetryTimeTracker).abs
+        # timeDifferenceInMinutes = timeDifference / 60
+        # if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
+        #   flushMdmMetricTelemetry
+        # end
+        # @oom_killed_container_count_hash = {}
+        # @container_restart_count_hash = {}
+        # @stale_job_count_hash = {}
+        # @pod_ready_percentage_hash = {}
       rescue => errorStr
         @log.info "Error in appendAllPodMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
@@ -312,8 +338,10 @@ class MdmMetricsGenerator
           if !errorCode.nil?
             if errorCode.start_with?("4")
               errorCodeCategory = Constants::CLIENT_ERROR_CATEGORY
+              @api_server_client_error_requests = errRequestCount
             elsif errorCode.start_with?("5")
               errorCodeCategory = Constants::SERVER_ERROR_CATEGORY
+              @api_server_server_error_requests = errRequestCount
             end
           end
         end
@@ -357,6 +385,17 @@ class MdmMetricsGenerator
         if !record["tags"].nil?
           # resourceName = record["tags"]["resource"]
           verbName = record["tags"]["verb"]
+          #Add below metric for telemetry
+          begin
+            if verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_GET
+              @api_server_get_request_avg_latency = averageLatency
+            elsif verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_PUT
+              @api_server_put_request_avg_latency = averageLatency
+            end
+          rescue => errStr
+            @log.info "Exception while comparing request verb: #{errStr}"
+            ApplicationInsightsUtility.sendExceptionTelemetry(errStr)
+          end
         end
         timestamp = record["timestamp"]
         convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601

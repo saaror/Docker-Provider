@@ -21,6 +21,7 @@ class Inventory2MdmConvertor
   @@node_status_ready = "Ready"
   @@node_status_not_ready = "NotReady"
   @@oom_killed = "oomkilled"
+  @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
 
   @@node_inventory_custom_metrics_template = '
         {
@@ -134,6 +135,17 @@ class Inventory2MdmConvertor
 
       #Add pod metric records
       records = MdmMetricsGenerator.appendAllPodMetrics(records, batch_time)
+
+      #Send telemetry for pod metrics
+      timeDifference = (DateTime.now.to_time.to_i - @@metricTelemetryTimeTracker).abs
+      timeDifferenceInMinutes = timeDifference / 60
+      if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
+        MdmMetricsGenerator.flushPodMdmMetricTelemetry
+        @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
+      end
+
+      # Clearing out all hashes after telemetry is flushed
+      MdmMetricsGenerator.clearPodHashes
     rescue Exception => e
       @log.info "Error processing pod inventory record Exception: #{e.class} Message: #{e.message}"
       ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
@@ -262,7 +274,7 @@ class Inventory2MdmConvertor
             if ((Time.now - finishedTimeParsed) / 60) > Constants::STALE_JOB_TIME_IN_MINUTES
               # return true
               MdmMetricsGenerator.generateStaleJobCountMetrics(podControllerNameDimValue,
-                podNamespaceDimValue)
+                                                               podNamespaceDimValue)
             end
           end
         end

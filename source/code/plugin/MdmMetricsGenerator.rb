@@ -387,9 +387,9 @@ class MdmMetricsGenerator
           verbName = record["tags"]["verb"]
           #Add below metric for telemetry
           begin
-            if verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_GET
+            if !verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_GET
               @api_server_get_request_avg_latency = averageLatency
-            elsif verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_PUT
+            elsif !verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_PUT
               @api_server_put_request_avg_latency = averageLatency
             end
           rescue => errStr

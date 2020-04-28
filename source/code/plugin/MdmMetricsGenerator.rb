@@ -276,52 +276,52 @@ class MdmMetricsGenerator
       return records
     end
 
-    def getNetworkErrorMetricRecords(record)
-      records = []
-      errIn = nil
-      errOut = nil
-      interfaceName = nil
-      hostName = nil
-      begin
-        @log.info "In getNetworkErrorMetricRecords..."
-        if !record["fields"].nil?
-          errIn = record["fields"]["err_in"]
-          errOut = record["fields"]["err_out"]
-        end
-        if !record["tags"].nil?
-          hostName = record["tags"]["hostName"]
-          interfaceName = record["tags"]["interface"]
-        end
-        timestamp = record["timestamp"]
-        convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
-        if !interfaceName.nil? && !hostName.nil?
-          if !errIn.nil?
-            networkErrInRecord = MdmAlertTemplates::Network_errors_metrics_template % {
-              timestamp: convertedTimestamp,
-              metricName: Constants::MDM_NETWORK_ERR_IN,
-              hostvalue: hostName,
-              interfacevalue: interfaceName,
-              networkErrValue: errIn,
-            }
-            records.push(JSON.parse(networkErrInRecord))
-          end
-          if !errOut.nil?
-            networkErrOutRecord = MdmAlertTemplates::Network_errors_metrics_template % {
-              timestamp: convertedTimestamp,
-              metricName: Constants::MDM_NETWORK_ERR_OUT,
-              hostvalue: hostName,
-              interfacevalue: interfaceName,
-              networkErrValue: errOut,
-            }
-            records.push(JSON.parse(networkErrOutRecord))
-          end
-        end
-      rescue => errorStr
-        @log.info "Error in getNetworkErrorMetricRecords: #{errorStr}"
-        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-      end
-      return records
-    end
+    # def getNetworkErrorMetricRecords(record)
+    #   records = []
+    #   errIn = nil
+    #   errOut = nil
+    #   interfaceName = nil
+    #   hostName = nil
+    #   begin
+    #     @log.info "In getNetworkErrorMetricRecords..."
+    #     if !record["fields"].nil?
+    #       errIn = record["fields"]["err_in"]
+    #       errOut = record["fields"]["err_out"]
+    #     end
+    #     if !record["tags"].nil?
+    #       hostName = record["tags"]["hostName"]
+    #       interfaceName = record["tags"]["interface"]
+    #     end
+    #     timestamp = record["timestamp"]
+    #     convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
+    #     if !interfaceName.nil? && !hostName.nil?
+    #       if !errIn.nil?
+    #         networkErrInRecord = MdmAlertTemplates::Network_errors_metrics_template % {
+    #           timestamp: convertedTimestamp,
+    #           metricName: Constants::MDM_NETWORK_ERR_IN,
+    #           hostvalue: hostName,
+    #           interfacevalue: interfaceName,
+    #           networkErrValue: errIn,
+    #         }
+    #         records.push(JSON.parse(networkErrInRecord))
+    #       end
+    #       if !errOut.nil?
+    #         networkErrOutRecord = MdmAlertTemplates::Network_errors_metrics_template % {
+    #           timestamp: convertedTimestamp,
+    #           metricName: Constants::MDM_NETWORK_ERR_OUT,
+    #           hostvalue: hostName,
+    #           interfacevalue: interfaceName,
+    #           networkErrValue: errOut,
+    #         }
+    #         records.push(JSON.parse(networkErrOutRecord))
+    #       end
+    #     end
+    #   rescue => errorStr
+    #     @log.info "Error in getNetworkErrorMetricRecords: #{errorStr}"
+    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+    #   end
+    #   return records
+    # end
 
     def getApiServerErrorRequestMetricRecords(record)
       errorMetricRecord = nil

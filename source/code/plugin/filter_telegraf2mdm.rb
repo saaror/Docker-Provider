@@ -51,13 +51,13 @@ module Fluent
 
     def filter(tag, time, record)
       begin
-        # @log.info "tag: #{tag}, time: #{time}, record: #{record}"
+        @log.info "tag: #{tag}, time: #{time}, record: #{record}"
         if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_DISK_METRICS
           return MdmMetricsGenerator.getDiskUsageMetricRecords(record)
         end
-        if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_NETWORK_METRICS
-          return MdmMetricsGenerator.getNetworkErrorMetricRecords(record)
-        end
+        # if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_NETWORK_METRICS
+        #   return MdmMetricsGenerator.getNetworkErrorMetricRecords(record)
+        # end
         if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_PROMETHEUS_METRICS
           return MdmMetricsGenerator.getPrometheusMetricRecords(record)
         end

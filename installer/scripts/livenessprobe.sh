@@ -12,7 +12,7 @@ fi
 (ps -ef | grep td-agent-bit | grep -v "grep")
 if [ $? -ne 0 ]
 then
- echo "Fleuntbit is NOT running"
+ echo "Fluentbit is NOT running"
  exit 1
 fi
 

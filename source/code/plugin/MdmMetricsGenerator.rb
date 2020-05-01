@@ -81,15 +81,16 @@ class MdmMetricsGenerator
       end
     end
 
-    def appendPodMetrics(records, metricName, metricHash, batch_time)
+    def appendPodMetrics(records, metricName, metricHash, batch_time, metricsTemplate)
       begin
         @log.info "in appendPodMetrics..."
+        @log.info "@zero_fill_metrics_hash: #{@zero_fill_metrics_hash}"
         # Switching templates so that we can add desired dimensions to job metric
-        if metricName == Constants::MDM_STALE_COMPLETED_JOB_COUNT
-          metricsTemplate = MdmAlertTemplates::Stable_job_metrics_template
-        else
-          metricsTemplate = MdmAlertTemplates::Pod_metrics_template
-        end
+        # if metricName == Constants::MDM_STALE_COMPLETED_JOB_COUNT
+        #   metricsTemplate = MdmAlertTemplates::Stable_job_metrics_template
+        # else
+        #   metricsTemplate = MdmAlertTemplates::Pod_metrics_template
+        # end
         if !metricHash.empty?
           metricHash.each { |key, value|
             key_elements = key.split("~~")
@@ -109,20 +110,27 @@ class MdmMetricsGenerator
               containerCountMetricValue: value,
             }
             records.push(JSON.parse(record))
+
+            # Update the hash once we have sent this metric, no need to zero fill
+            if @zero_fill_metrics_hash.key?(metricName)
+              @zero_fill_metrics_hash[metricName] = false
+            end
           }
-        elsif metricHash.empty? && @zero_fill_metrics_hash[metricName] == true
-          # We only do this once at startup so that these metrics are sent atleast once
-          # and alert enablement doesnt fail with missing metrics error
-          @log.info "zero filling for metric name: #{metricName}"
-          record = metricsTemplate % {
-            timestamp: batch_time,
-            metricName: metricName,
-            controllerNameDimValue: "-",
-            namespaceDimValue: "-",
-            containerCountMetricValue: 0,
-          }
-          records.push(JSON.parse(record))
-          @zero_fill_metrics_hash[metricName] = false
+          elsif metricHash.empty? && 
+            @zero_fill_metrics_hash.key?(metricName) && 
+            @zero_fill_metrics_hash[metricName] == true
+            # We only do this once at startup so that these metrics are sent atleast once
+            # and alert enablement doesnt fail with missing metrics error
+            @log.info "zero filling for metric name: #{metricName}"
+            record = metricsTemplate % {
+              timestamp: batch_time,
+              metricName: metricName,
+              controllerNameDimValue: "-",
+              namespaceDimValue: "-",
+              containerCountMetricValue: 0,
+            }
+            records.push(JSON.parse(record))
+            @zero_fill_metrics_hash[metricName] = false
         else
           @log.info "No records found in hash for metric: #{metricName}"
         end
@@ -193,34 +201,32 @@ class MdmMetricsGenerator
       begin
         @log.info "in appendAllPodMetrics..."
 
-        #Keeping track of count for telemetry
-        # @oomKilledContainerMetricCount = @oom_killed_container_count_hash.length
-        records = appendPodMetrics(records, Constants::MDM_OOM_KILLED_CONTAINER_COUNT, @oom_killed_container_count_hash, batch_time)
-        # @oom_killed_container_count_hash = {}
+        records = appendPodMetrics(records,
+                                   Constants::MDM_OOM_KILLED_CONTAINER_COUNT,
+                                   @oom_killed_container_count_hash,
+                                   batch_time,
+                                   MdmAlertTemplates::Pod_metrics_template)
 
-        # @containerRestartMetricCount = @container_restart_count_hash.length
-        records = appendPodMetrics(records, Constants::MDM_CONTAINER_RESTART_COUNT, @container_restart_count_hash, batch_time)
-        # @container_restart_count_hash = {}
+        records = appendPodMetrics(records,
+                                   Constants::MDM_CONTAINER_RESTART_COUNT,
+                                   @container_restart_count_hash,
+                                   batch_time,
+                                   MdmAlertTemplates::Pod_metrics_template)
 
-        # @staleJobMetricCount = @stale_job_count_hash.length
-        records = appendPodMetrics(records, Constants::MDM_STALE_COMPLETED_JOB_COUNT, @stale_job_count_hash, batch_time)
-        # @stale_job_count_hash = {}
+        records = appendPodMetrics(records,
+                                   Constants::MDM_STALE_COMPLETED_JOB_COUNT,
+                                   @stale_job_count_hash,
+                                   batch_time,
+                                   MdmAlertTemplates::Stable_job_metrics_template)
 
         # Computer the percentage here, because we need to do this after all chunks have been processed.
         populatePodReadyPercentageHash
-        @log.info "@pod_ready_percentage_hash: #{@pod_ready_percentage_hash}"
-        records = appendPodMetrics(records, Constants::MDM_POD_READY_PERCENTAGE, @pod_ready_percentage_hash, batch_time)
-        # @pod_ready_percentage_hash = {}
-
-        # timeDifference = (DateTime.now.to_time.to_i - @@metricTelemetryTimeTracker).abs
-        # timeDifferenceInMinutes = timeDifference / 60
-        # if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
-        #   flushMdmMetricTelemetry
-        # end
-        # @oom_killed_container_count_hash = {}
-        # @container_restart_count_hash = {}
-        # @stale_job_count_hash = {}
-        # @pod_ready_percentage_hash = {}
+        # @log.info "@pod_ready_percentage_hash: #{@pod_ready_percentage_hash}"
+        records = appendPodMetrics(records,
+                                   Constants::MDM_POD_READY_PERCENTAGE,
+                                   @pod_ready_percentage_hash,
+                                   batch_time,
+                                   MdmAlertTemplates::Pod_metrics_template)
       rescue => errorStr
         @log.info "Error in appendAllPodMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)

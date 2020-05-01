@@ -22,7 +22,7 @@ class MdmMetricsGenerator
   @zero_fill_metrics_hash = {
     Constants::MDM_OOM_KILLED_CONTAINER_COUNT => true,
     Constants::MDM_CONTAINER_RESTART_COUNT => true,
-    Constants::MDM_STALE_COMPLETED_JOB_COUNT => true
+    Constants::MDM_STALE_COMPLETED_JOB_COUNT => true,
   }
   # Keeping track of metrics for telemetry
   @api_server_client_error_requests = 0
@@ -111,18 +111,18 @@ class MdmMetricsGenerator
             records.push(JSON.parse(record))
           }
         elsif metricHash.empty? && @zero_fill_metrics_hash[metricName] == true
-          # We only do this once at startup so that these metrics are sent atleast once 
+          # We only do this once at startup so that these metrics are sent atleast once
           # and alert enablement doesnt fail with missing metrics error
-            record = metricsTemplate % {
-              timestamp: batch_time,
-              metricName: metricName,
-              controllerNameDimValue: "-",
-              namespaceDimValue: "-",
-              containerCountMetricValue: 0,
-            }
-            records.push(JSON.parse(record))
-            @zero_fill_metrics_hash[metricName] = false
-          end
+          @log.info "zero filling for metric name: #{metricName}"
+          record = metricsTemplate % {
+            timestamp: batch_time,
+            metricName: metricName,
+            controllerNameDimValue: "-",
+            namespaceDimValue: "-",
+            containerCountMetricValue: 0,
+          }
+          records.push(JSON.parse(record))
+          @zero_fill_metrics_hash[metricName] = false
         else
           @log.info "No records found in hash for metric: #{metricName}"
         end

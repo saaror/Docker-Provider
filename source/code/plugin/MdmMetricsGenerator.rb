@@ -116,21 +116,21 @@ class MdmMetricsGenerator
               @zero_fill_metrics_hash[metricName] = false
             end
           }
-          elsif metricHash.empty? && 
-            @zero_fill_metrics_hash.key?(metricName) && 
-            @zero_fill_metrics_hash[metricName] == true
-            # We only do this once at startup so that these metrics are sent atleast once
-            # and alert enablement doesnt fail with missing metrics error
-            @log.info "zero filling for metric name: #{metricName}"
-            record = metricsTemplate % {
-              timestamp: batch_time,
-              metricName: metricName,
-              controllerNameDimValue: "-",
-              namespaceDimValue: "-",
-              containerCountMetricValue: 0,
-            }
-            records.push(JSON.parse(record))
-            @zero_fill_metrics_hash[metricName] = false
+        elsif metricHash.empty? &&
+              @zero_fill_metrics_hash.key?(metricName) &&
+              @zero_fill_metrics_hash[metricName] == true
+          # We only do this once at startup so that these metrics are sent atleast once
+          # and alert enablement doesnt fail with missing metrics error
+          @log.info "zero filling for metric name: #{metricName}"
+          record = metricsTemplate % {
+            timestamp: batch_time,
+            metricName: metricName,
+            controllerNameDimValue: "-",
+            namespaceDimValue: "-",
+            containerCountMetricValue: 0,
+          }
+          records.push(JSON.parse(record))
+          @zero_fill_metrics_hash[metricName] = false
         else
           @log.info "No records found in hash for metric: #{metricName}"
         end
@@ -237,6 +237,10 @@ class MdmMetricsGenerator
     def getContainerResourceUtilMetricRecords(record, metricName, percentageMetricValue, dims, thresholdPercentage)
       records = []
       begin
+        if dims.nil?
+          @log.info "Dimensions nil, returning empty records"
+          return records
+        end
         dimElements = dims.split("~~")
         if dimElements.length != 4
           return records

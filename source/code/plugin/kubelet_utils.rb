@@ -8,8 +8,8 @@ require_relative "CAdvisorMetricsAPIClient"
 require_relative "KubernetesApiClient"
 
 class KubeletUtils
-    @log_path = "/var/opt/microsoft/docker-cimprov/log/filter_cadvisor2mdm.log"
-    @log = Logger.new(@log_path, 1, 5000000)
+  @log_path = "/var/opt/microsoft/docker-cimprov/log/filter_cadvisor2mdm.log"
+  @log = Logger.new(@log_path, 1, 5000000)
 
   class << self
     def get_node_capacity
@@ -75,15 +75,18 @@ class KubeletUtils
                 @log.info "in podcontainers for loop..."
                 # containerName = "No name"
                 containerName = container["name"]
+                key = clusterId + "/" + podUid + "/" + containerName
+                @log.info "key: #{key}"
+                containerResourceDimensionHash[key] = [containerName, podName, controllerName, podNameSpace].join("~~")
                 if !container["resources"].nil? && !container["resources"]["limits"].nil? && !containerName.nil?
                   cpuLimit = container["resources"]["limits"]["cpu"]
                   memoryLimit = container["resources"]["limits"]["memory"]
-                  key = clusterId + "/" + podUid + "/" + containerName
-                  @log.info "key: #{key}"
+                  # key = clusterId + "/" + podUid + "/" + containerName
+                  # @log.info "key: #{key}"
                   @log.info "cpuLimit: #{cpuLimit}"
                   @log.info "memoryLimit: #{memoryLimit}"
 
-                  containerResourceDimensionHash[key] = [containerName, podName, controllerName, podNameSpace].join("~~")
+                  # containerResourceDimensionHash[key] = [containerName, podName, controllerName, podNameSpace].join("~~")
                   #   # Convert cpu limit from nanocores to millicores
                   #   cpuLimitInNanoCores = KubernetesApiClient.getMetricNumericValue("cpu", cpuLimit)
                   #   cpuLimitInMilliCores = cpuLimitInNanoCores / 1000000

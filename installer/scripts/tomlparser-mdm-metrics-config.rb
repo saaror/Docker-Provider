@@ -7,9 +7,9 @@ require_relative "ConfigParseErrorLogger"
 @configVersion = ""
 @configSchemaVersion = ""
 # Setting default values which will be used in case they are not set in the configmap or if configmap doesnt exist
-@percentageCpuUsageThreshold = 95.0
-@percentageMemoryRssThreshold = 95.0
-@percentageMemoryWorkingSetThreshold = 95.0
+@percentageCpuUsageThreshold = 0.0
+@percentageMemoryRssThreshold = 0.0
+@percentageMemoryWorkingSetThreshold = 0.0
 
 # Use parser to parse the configmap toml file to a ruby structure
 def parseConfigMap

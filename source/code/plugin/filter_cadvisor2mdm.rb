@@ -214,7 +214,7 @@ module Fluent
 
             # Flushing telemetry here since, we return as soon as we generate the metric
             flushMetricTelemetry
-            if percentage_metric_value > thresholdPercentage
+            if percentage_metric_value >= thresholdPercentage
               setThresholdExceededTelemetry(metricName)
               return MdmMetricsGenerator.getContainerResourceUtilMetricRecords(record,
                                                                                metricName,

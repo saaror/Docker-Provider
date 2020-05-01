@@ -19,7 +19,11 @@ class MdmMetricsGenerator
   @pod_ready_hash = {}
   @pod_not_ready_hash = {}
   @pod_ready_percentage_hash = {}
-
+  @zero_fill_metrics_hash = {
+    Constants::MDM_OOM_KILLED_CONTAINER_COUNT => true,
+    Constants::MDM_CONTAINER_RESTART_COUNT => true,
+    Constants::MDM_STALE_COMPLETED_JOB_COUNT => true
+  }
   # Keeping track of metrics for telemetry
   @api_server_client_error_requests = 0
   @api_server_server_error_requests = 0
@@ -80,6 +84,12 @@ class MdmMetricsGenerator
     def appendPodMetrics(records, metricName, metricHash, batch_time)
       begin
         @log.info "in appendPodMetrics..."
+        # Switching templates so that we can add desired dimensions to job metric
+        if metricName == Constants::MDM_STALE_COMPLETED_JOB_COUNT
+          metricsTemplate = MdmAlertTemplates::Stable_job_metrics_template
+        else
+          metricsTemplate = MdmAlertTemplates::Pod_metrics_template
+        end
         if !metricHash.empty?
           metricHash.each { |key, value|
             key_elements = key.split("~~")
@@ -91,12 +101,6 @@ class MdmMetricsGenerator
             podControllerNameDimValue = key_elements[0]
             podNamespaceDimValue = key_elements[1]
 
-            # Switching templates so that we can add desired dimensions to job metric
-            if metricName == Constants::MDM_STALE_COMPLETED_JOB_COUNT
-              metricsTemplate = MdmAlertTemplates::Stable_job_metrics_template
-            else
-              metricsTemplate = MdmAlertTemplates::Pod_metrics_template
-            end
             record = metricsTemplate % {
               timestamp: batch_time,
               metricName: metricName,
@@ -106,6 +110,19 @@ class MdmMetricsGenerator
             }
             records.push(JSON.parse(record))
           }
+        elsif metricHash.empty? && @zero_fill_metrics_hash[metricName] == true
+          # We only do this once at startup so that these metrics are sent atleast once 
+          # and alert enablement doesnt fail with missing metrics error
+            record = metricsTemplate % {
+              timestamp: batch_time,
+              metricName: metricName,
+              controllerNameDimValue: "-",
+              namespaceDimValue: "-",
+              containerCountMetricValue: 0,
+            }
+            records.push(JSON.parse(record))
+            @zero_fill_metrics_hash[metricName] = false
+          end
         else
           @log.info "No records found in hash for metric: #{metricName}"
         end

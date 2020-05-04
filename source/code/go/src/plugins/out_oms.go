@@ -69,13 +69,6 @@ func FLBPluginFlush(data unsafe.Pointer, length C.int, tag *C.char) int {
 	}
 
 	incomingTag := strings.ToLower(C.GoString(tag))
-	/**
-	********************************************
-	********************************************
-	* Kaveesh:	* This needs to be updated in the fluent-bit conf file : Confirm before merging to ci_feature!
-	********************************************
-	********************************************
-	 */
 	if strings.Contains(incomingTag, "oms.container.log.flbplugin") {
 		// This will also include populating cache to be sent as for config events
 		return PushToAppInsightsTraces(records, appinsights.Information, incomingTag)

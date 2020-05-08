@@ -11,8 +11,6 @@ class MdmMetricsGenerator
   @log_path = "/var/opt/microsoft/docker-cimprov/log/mdm_metrics_generator.log"
   @log = Logger.new(@log_path, 1, 5000000)
 
-  # @@oom_killed_container_count_metric_name = "OomKilledContainerCount"
-  # @@container_restart_count_metric_name = "ContainerRestartCount"
   @oom_killed_container_count_hash = {}
   @container_restart_count_hash = {}
   @stale_job_count_hash = {}
@@ -25,10 +23,10 @@ class MdmMetricsGenerator
     Constants::MDM_STALE_COMPLETED_JOB_COUNT => true,
   }
   # Keeping track of metrics for telemetry
-  @api_server_client_error_requests = 0
-  @api_server_server_error_requests = 0
-  @api_server_get_request_avg_latency = 0
-  @api_server_put_request_avg_latency = 0
+  # @api_server_client_error_requests = 0
+  # @api_server_server_error_requests = 0
+  # @api_server_get_request_avg_latency = 0
+  # @api_server_put_request_avg_latency = 0
 
   @@node_metric_name_metric_percentage_name_hash = {
     Constants::CPU_USAGE_MILLI_CORES => Constants::MDM_NODE_CPU_USAGE_PERCENTAGE,
@@ -43,8 +41,8 @@ class MdmMetricsGenerator
     Constants::MEMORY_WORKING_SET_BYTES => Constants::MDM_CONTAINER_MEMORY_WORKING_SET_UTILIZATION_METRIC,
   }
 
-  # @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
-  @apiServerErrorRequestTelemetryTimeTracker = DateTime.now.to_time.to_i
+  # Setting this to true since we need to send zero filled metrics at startup. If metrics are absent alert creation fails
+  @sendZeroFilledMetrics = true
 
   def initialize
   end
@@ -84,13 +82,6 @@ class MdmMetricsGenerator
     def appendPodMetrics(records, metricName, metricHash, batch_time, metricsTemplate)
       begin
         @log.info "in appendPodMetrics..."
-        @log.info "@zero_fill_metrics_hash: #{@zero_fill_metrics_hash}"
-        # Switching templates so that we can add desired dimensions to job metric
-        # if metricName == Constants::MDM_STALE_COMPLETED_JOB_COUNT
-        #   metricsTemplate = MdmAlertTemplates::Stable_job_metrics_template
-        # else
-        #   metricsTemplate = MdmAlertTemplates::Pod_metrics_template
-        # end
         if !metricHash.empty?
           metricHash.each { |key, value|
             key_elements = key.split("~~")
@@ -110,27 +101,7 @@ class MdmMetricsGenerator
               containerCountMetricValue: value,
             }
             records.push(JSON.parse(record))
-
-            # Update the hash once we have sent this metric, no need to zero fill
-            if @zero_fill_metrics_hash.key?(metricName)
-              @zero_fill_metrics_hash[metricName] = false
-            end
           }
-        elsif metricHash.empty? &&
-              @zero_fill_metrics_hash.key?(metricName) &&
-              @zero_fill_metrics_hash[metricName] == true
-          # We only do this once at startup so that these metrics are sent atleast once
-          # and alert enablement doesnt fail with missing metrics error
-          @log.info "zero filling for metric name: #{metricName}"
-          record = metricsTemplate % {
-            timestamp: batch_time,
-            metricName: metricName,
-            controllerNameDimValue: "-",
-            namespaceDimValue: "-",
-            containerCountMetricValue: 0,
-          }
-          records.push(JSON.parse(record))
-          @zero_fill_metrics_hash[metricName] = false
         else
           @log.info "No records found in hash for metric: #{metricName}"
         end
@@ -164,31 +135,27 @@ class MdmMetricsGenerator
         @log.info "Error in flushMdmMetricTelemetry: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
-      # @oomKilledContainerMetricCount = 0
-      # @containerRestartMetricCount = 0
-      # @staleJobMetricCount = 0
-      # @@metricTelemetryTimeTracker = DateTime.now.to_time.to_i
       @log.info "Mdm pod metric telemetry successfully flushed"
     end
 
-    def flushTelegrafMdmMetricTelemetry
-      begin
-        properties = {}
-        properties["ApiServerRequestClientErrors"] = @api_server_client_error_requests
-        properties["ApiServerRequestServerErrors"] = @api_server_server_error_requests
-        properties["ApiServerGetRequestAverageLatencyMs"] = @api_server_get_request_avg_latency
-        properties["ApiServerPutRequestAverageLatencyMs"] = @api_server_put_request_avg_latency
-        ApplicationInsightsUtility.sendCustomEvent(Constants::TELEGRAF_METRICS_HEART_BEAT_EVENT, properties)
-      rescue => errorStr
-        @log.info "Error in flushTelegrafMdmMetricTelemetry: #{errorStr}"
-        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-      end
-      #Resetting these values to 0 after flushing telemetry
-      @api_server_client_error_requests = 0
-      @api_server_server_error_requests = 0
-      @api_server_get_request_avg_latency = 0
-      @api_server_put_request_avg_latency = 0
-    end
+    # def flushTelegrafMdmMetricTelemetry
+    #   begin
+    #     properties = {}
+    #     properties["ApiServerRequestClientErrors"] = @api_server_client_error_requests
+    #     properties["ApiServerRequestServerErrors"] = @api_server_server_error_requests
+    #     properties["ApiServerGetRequestAverageLatencyMs"] = @api_server_get_request_avg_latency
+    #     properties["ApiServerPutRequestAverageLatencyMs"] = @api_server_put_request_avg_latency
+    #     ApplicationInsightsUtility.sendCustomEvent(Constants::TELEGRAF_METRICS_HEART_BEAT_EVENT, properties)
+    #   rescue => errorStr
+    #     @log.info "Error in flushTelegrafMdmMetricTelemetry: #{errorStr}"
+    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+    #   end
+    #   #Resetting these values to 0 after flushing telemetry
+    #   @api_server_client_error_requests = 0
+    #   @api_server_server_error_requests = 0
+    #   @api_server_get_request_avg_latency = 0
+    #   @api_server_put_request_avg_latency = 0
+    # end
 
     def clearPodHashes
       @oom_killed_container_count_hash = {}
@@ -197,10 +164,55 @@ class MdmMetricsGenerator
       @pod_ready_percentage_hash = {}
     end
 
+    def zeroFillMetricRecords(records, batch_time)
+      begin
+        @log.info "In zero fill metric records"
+        zero_fill_dim_key = [Constants::OMSAGENT_ZERO_FILL, Constants::KUBESYSTEM_NAMESPACE_ZERO_FILL].join("~~")
+        @oom_killed_container_count_hash[zero_fill_dim_key] = @oom_killed_container_count_hash.key?(zero_fill_dim_key) ? @oom_killed_container_count_hash[dim_key] : 0
+        @container_restart_count_hash[zero_fill_dim_key] = @container_restart_count_hash.key?(zero_fill_dim_key) ? @container_restart_count_hash[dim_key] : 0
+        @stale_job_count_hash[zero_fill_dim_key] = @stale_job_count_hash.key?(zero_fill_dim_key) ? @stale_job_count_hash[dim_key] : 0
+
+        metric_threshold_hash = getContainerResourceUtilizationThresholds
+        container_zero_fill_dims = [Constants::OMSAGENT_ZERO_FILL, Constants::OMSAGENT_ZERO_FILL, Constants::OMSAGENT_ZERO_FILL, Constants::KUBESYSTEM_NAMESPACE_ZERO_FILL].join("~~")
+        containerCpuRecord = getContainerResourceUtilMetricRecords(batch_time,
+                                                                   Constants::CPU_USAGE_NANO_CORES,
+                                                                   0,
+                                                                   container_zero_fill_dims,
+                                                                   metric_threshold_hash[Constants::CPU_USAGE_NANO_CORES])
+        if !containerCpuRecord.nil? && !containerCpuRecord.empty? && !containerCpuRecord[0].nil? && !containerCpuRecord[0].empty?
+          records.push(containerCpuRecord[0])
+        end
+        containerMemoryRssRecord = getContainerResourceUtilMetricRecords(batch_time,
+                                                                         Constants::MEMORY_RSS_BYTES,
+                                                                         0,
+                                                                         container_zero_fill_dims,
+                                                                         metric_threshold_hash[Constants::MEMORY_RSS_BYTES])
+        if !containerMemoryRssRecord.nil? && !containerMemoryRssRecord.empty? && !containerMemoryRssRecord[0].nil? && !containerMemoryRssRecord[0].empty?
+          records.push(containerMemoryRssRecord[0])
+        end
+        containerMemoryWorkingSetRecord = getContainerResourceUtilMetricRecords(batch_time,
+                                                                                Constants::MEMORY_WORKING_SET_BYTES,
+                                                                                0,
+                                                                                container_zero_fill_dims,
+                                                                                metric_threshold_hash[Constants::MEMORY_WORKING_SET_BYTES])
+        if !containerMemoryWorkingSetRecord.nil? && !containerMemoryWorkingSetRecord.empty? && !containerMemoryWorkingSetRecord[0].nil? && !containerMemoryWorkingSetRecord[0].empty?
+          records.push(containerMemoryWorkingSetRecord[0])
+        end
+      rescue => errorStr
+        @log.info "Error in zeroFillMetricRecords: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      return records
+    end
+
     def appendAllPodMetrics(records, batch_time)
       begin
         @log.info "in appendAllPodMetrics..."
-
+        if @sendZeroFilledMetrics == true
+          records = zeroFillMetricRecords(records, batch_time)
+          # Setting it to false after startup
+          @sendZeroFilledMetrics = false
+        end
         records = appendPodMetrics(records,
                                    Constants::MDM_OOM_KILLED_CONTAINER_COUNT,
                                    @oom_killed_container_count_hash,
@@ -234,7 +246,7 @@ class MdmMetricsGenerator
       return records
     end
 
-    def getContainerResourceUtilMetricRecords(record, metricName, percentageMetricValue, dims, thresholdPercentage)
+    def getContainerResourceUtilMetricRecords(recordTimeStamp, metricName, percentageMetricValue, dims, thresholdPercentage)
       records = []
       begin
         if dims.nil?
@@ -253,7 +265,7 @@ class MdmMetricsGenerator
         podNamespace = dimElements[3]
 
         resourceUtilRecord = MdmAlertTemplates::Container_resource_utilization_template % {
-          timestamp: record["DataItems"][0]["Timestamp"],
+          timestamp: recordTimeStamp,
           metricName: @@container_metric_name_metric_percentage_name_hash[metricName],
           containerNameDimValue: containerName,
           podNameDimValue: podName,
@@ -303,6 +315,39 @@ class MdmMetricsGenerator
       return records
     end
 
+    def getContainerResourceUtilizationThresholds
+      begin
+        metric_threshold_hash = {}
+        # Initilizing with default values
+        metric_threshold_hash[Constants::CPU_USAGE_NANO_CORES] = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
+        metric_threshold_hash[Constants::MEMORY_RSS_BYTES] = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
+        metric_threshold_hash[Constants::MEMORY_WORKING_SET_BYTES] = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
+
+        cpuThreshold = ENV["AZMON_MDM_CPU_UTILIZATION_THRESHOLD"]
+        if !cpuThreshold.nil? && !cpuThreshold.empty?
+          #Rounding this to 2 decimal places, since this value is user configurable
+          cpuThresholdFloat = (cpuThreshold.to_f).round(2)
+          metric_threshold_hash[Constants::CPU_USAGE_NANO_CORES] = cpuThresholdFloat
+        end
+
+        memoryRssThreshold = ENV["AZMON_MDM_MEMORY_RSS_THRESHOLD"]
+        if !memoryRssThreshold.nil? && !memoryRssThreshold.empty?
+          memoryRssThresholdFloat = (memoryRssThreshold.to_f).round(2)
+          metric_threshold_hash[Constants::MEMORY_RSS_BYTES] = memoryRssThresholdFloat
+        end
+
+        memoryWorkingSetThreshold = ENV["AZMON_MDM_MEMORY_WORKING_SET_THRESHOLD"]
+        if !memoryWorkingSetThreshold.nil? && !memoryWorkingSetThreshold.empty?
+          memoryWorkingSetThresholdFloat = (memoryWorkingSetThreshold.to_f).round(2)
+          metric_threshold_hash[Constants::MEMORY_WORKING_SET_BYTES] = memoryWorkingSetThresholdFloat
+        end
+      rescue => errorStr
+        @log.info "Error in getContainerResourceUtilizationThresholds: #{errorStr}"
+        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+      end
+      return metric_threshold_hash
+    end
+
     # def getNetworkErrorMetricRecords(record)
     #   records = []
     #   errIn = nil
@@ -350,130 +395,127 @@ class MdmMetricsGenerator
     #   return records
     # end
 
-    def getApiServerErrorRequestMetricRecords(record)
-      errorMetricRecord = nil
-      errRequestCount = nil
-      errorCode = nil
-      errorCodeCategory = nil
-      begin
-        @log.info "In getApiServerErrorRequestMetricRecords..."
-        if !record["fields"].nil?
-          errRequestCount = record["fields"][Constants::PROM_API_SERVER_REQ_COUNT]
-        end
-        if !record["tags"].nil?
-          errorCode = record["tags"]["code"]
-          if !errorCode.nil?
-            if errorCode.start_with?("4")
-              errorCodeCategory = Constants::CLIENT_ERROR_CATEGORY
-              @api_server_client_error_requests = errRequestCount
-            elsif errorCode.start_with?("5")
-              errorCodeCategory = Constants::SERVER_ERROR_CATEGORY
-              @api_server_server_error_requests = errRequestCount
-            end
-          end
-        end
-        timestamp = record["timestamp"]
-        convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
-        if !errRequestCount.nil? && !errorCode.nil? && !errorCodeCategory.nil?
-          apiServerErrMetricRecord = MdmAlertTemplates::Api_server_request_errors_metrics_template % {
-            timestamp: convertedTimestamp,
-            metricName: Constants::MDM_API_SERVER_ERROR_REQUEST,
-            codevalue: errorCode,
-            errorCategoryValue: errorCodeCategory,
-            requestErrValue: errRequestCount,
-          }
-          errorMetricRecord = JSON.parse(apiServerErrMetricRecord)
-        end
-      rescue => errorStr
-        @log.info "Error in getApiServerErrorRequestMetricRecords: #{errorStr}"
-        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-      end
-      return errorMetricRecord
-    end
+    # def getApiServerErrorRequestMetricRecords(record)
+    #   errorMetricRecord = nil
+    #   errRequestCount = nil
+    #   errorCode = nil
+    #   errorCodeCategory = nil
+    #   begin
+    #     @log.info "In getApiServerErrorRequestMetricRecords..."
+    #     if !record["fields"].nil?
+    #       errRequestCount = record["fields"][Constants::PROM_API_SERVER_REQ_COUNT]
+    #     end
+    #     if !record["tags"].nil?
+    #       errorCode = record["tags"]["code"]
+    #       if !errorCode.nil?
+    #         if errorCode.start_with?("4")
+    #           errorCodeCategory = Constants::CLIENT_ERROR_CATEGORY
+    #           @api_server_client_error_requests = errRequestCount
+    #         elsif errorCode.start_with?("5")
+    #           errorCodeCategory = Constants::SERVER_ERROR_CATEGORY
+    #           @api_server_server_error_requests = errRequestCount
+    #         end
+    #       end
+    #     end
+    #     timestamp = record["timestamp"]
+    #     convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
+    #     if !errRequestCount.nil? && !errorCode.nil? && !errorCodeCategory.nil?
+    #       apiServerErrMetricRecord = MdmAlertTemplates::Api_server_request_errors_metrics_template % {
+    #         timestamp: convertedTimestamp,
+    #         metricName: Constants::MDM_API_SERVER_ERROR_REQUEST,
+    #         codevalue: errorCode,
+    #         errorCategoryValue: errorCodeCategory,
+    #         requestErrValue: errRequestCount,
+    #       }
+    #       errorMetricRecord = JSON.parse(apiServerErrMetricRecord)
+    #     end
+    #   rescue => errorStr
+    #     @log.info "Error in getApiServerErrorRequestMetricRecords: #{errorStr}"
+    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+    #   end
+    #   return errorMetricRecord
+    # end
 
-    def getApiServerLatencyMetricRecords(record)
-      latencyMetricRecord = nil
-      averageLatency = nil
-      # resourceName = nil
-      verbName = nil
-      begin
-        fields = record["fields"]
-        if !fields.nil?
-          latenciesSummarySum = fields[Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM]
-          latenciesSummaryCount = fields[Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT]
-          if !latenciesSummarySum.nil? &&
-             !latenciesSummaryCount.nil? &&
-             latenciesSummaryCount != 0
-            averageLatency = latenciesSummarySum / latenciesSummaryCount
-            # @log.info "averageLatency: #{averageLatency}, latenciesSummarySum: #{latenciesSummarySum}, latenciesSummaryCount: #{latenciesSummaryCount}"
-          end
-        end
+    # def getApiServerLatencyMetricRecords(record)
+    #   latencyMetricRecord = nil
+    #   averageLatency = nil
+    #   # resourceName = nil
+    #   verbName = nil
+    #   begin
+    #     fields = record["fields"]
+    #     if !fields.nil?
+    #       latenciesSummarySum = fields[Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM]
+    #       latenciesSummaryCount = fields[Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT]
+    #       if !latenciesSummarySum.nil? &&
+    #          !latenciesSummaryCount.nil? &&
+    #          latenciesSummaryCount != 0
+    #         averageLatency = latenciesSummarySum / latenciesSummaryCount
+    #         # @log.info "averageLatency: #{averageLatency}, latenciesSummarySum: #{latenciesSummarySum}, latenciesSummaryCount: #{latenciesSummaryCount}"
+    #       end
+    #     end
 
-        if !record["tags"].nil?
-          # resourceName = record["tags"]["resource"]
-          verbName = record["tags"]["verb"]
-          #Add below metric for telemetry
-          begin
-            if !verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_GET
-              @api_server_get_request_avg_latency = averageLatency
-            elsif !verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_PUT
-              @api_server_put_request_avg_latency = averageLatency
-            end
-          rescue => errStr
-            @log.info "Exception while comparing request verb: #{errStr}"
-            ApplicationInsightsUtility.sendExceptionTelemetry(errStr)
-          end
-        end
-        timestamp = record["timestamp"]
-        convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
+    #     if !record["tags"].nil?
+    #       # resourceName = record["tags"]["resource"]
+    #       verbName = record["tags"]["verb"]
+    #       #Add below metric for telemetry
+    #       begin
+    #         if !verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_GET
+    #           @api_server_get_request_avg_latency = averageLatency
+    #         elsif !verbName.nil? && verbName.downcase == Constants::API_SERVER_REQUEST_VERB_PUT
+    #           @api_server_put_request_avg_latency = averageLatency
+    #         end
+    #       rescue => errStr
+    #         @log.info "Exception while comparing request verb: #{errStr}"
+    #         ApplicationInsightsUtility.sendExceptionTelemetry(errStr)
+    #       end
+    #     end
+    #     timestamp = record["timestamp"]
+    #     convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
 
-        if !averageLatency.nil? && !verbName.nil?
-          apiServerLatencyMetricRecord = MdmAlertTemplates::Api_server_request_latencies_metrics_template % {
-            timestamp: convertedTimestamp,
-            metricName: Constants::MDM_API_SERVER_REQUEST_LATENCIES,
-            # resourceValue: resourceName,
-            verbValue: verbName,
-            requestLatenciesValue: averageLatency,
-          }
-          latencyMetricRecord = JSON.parse(apiServerLatencyMetricRecord)
-        end
-      rescue => errorStr
-        @log.info "Error in getApiServerLatencyMetricRecords: #{errorStr}"
-        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-      end
-      return latencyMetricRecord
-    end
+    #     if !averageLatency.nil? && !verbName.nil?
+    #       apiServerLatencyMetricRecord = MdmAlertTemplates::Api_server_request_latencies_metrics_template % {
+    #         timestamp: convertedTimestamp,
+    #         metricName: Constants::MDM_API_SERVER_REQUEST_LATENCIES,
+    #         # resourceValue: resourceName,
+    #         verbValue: verbName,
+    #         requestLatenciesValue: averageLatency,
+    #       }
+    #       latencyMetricRecord = JSON.parse(apiServerLatencyMetricRecord)
+    #     end
+    #   rescue => errorStr
+    #     @log.info "Error in getApiServerLatencyMetricRecords: #{errorStr}"
+    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+    #   end
+    #   return latencyMetricRecord
+    # end
 
-    def getPrometheusMetricRecords(record)
-      records = []
-      # errRequestCount = nil
-      # errorCode = nil
-      begin
-        if !record["fields"].nil?
-          fields = record["fields"]
-          if fields.key?(Constants::PROM_API_SERVER_REQ_COUNT)
-            # @log.info "in key check PROM_API_SERVER_REQ_COUNT: #{record}"
-            errorMetricRecord = getApiServerErrorRequestMetricRecords(record)
-            if !errorMetricRecord.nil?
-              records.push(errorMetricRecord)
-            end
-          end
-          if fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM) ||
-             fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT)
-            #  @log.info "in key check PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM: #{record}"
-            latencyMetricRecord = getApiServerLatencyMetricRecords(record)
-            if !latencyMetricRecord.nil?
-              records.push(latencyMetricRecord)
-            end
-          end
-        end
-      rescue => errorStr
-        @log.info "Error in getPrometheusMetricRecords: #{errorStr}"
-        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-      end
-      # @log.info "records being returned: #{records}"
-      return records
-    end
+    # def getPrometheusMetricRecords(record)
+    #   records = []
+    #   # errRequestCount = nil
+    #   # errorCode = nil
+    #   begin
+    #     if !record["fields"].nil?
+    #       fields = record["fields"]
+    #       if fields.key?(Constants::PROM_API_SERVER_REQ_COUNT)
+    #         errorMetricRecord = getApiServerErrorRequestMetricRecords(record)
+    #         if !errorMetricRecord.nil?
+    #           records.push(errorMetricRecord)
+    #         end
+    #       end
+    #       if fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM) ||
+    #          fields.key?(Constants::PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT)
+    #         latencyMetricRecord = getApiServerLatencyMetricRecords(record)
+    #         if !latencyMetricRecord.nil?
+    #           records.push(latencyMetricRecord)
+    #         end
+    #       end
+    #     end
+    #   rescue => errorStr
+    #     @log.info "Error in getPrometheusMetricRecords: #{errorStr}"
+    #     ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
+    #   end
+    #   return records
+    # end
 
     def getNodeResourceMetricRecords(record, metric_name, metric_value, percentage_metric_value)
       records = []

@@ -36,7 +36,7 @@ class MdmAlertTemplates
                 "dimNames": [
                     "controllerName",
                     "Kubernetes namespace",
-                    "thresholdHours"
+                    "olderThanHours"
                 ],
                 "series": [
                 {

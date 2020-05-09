@@ -288,7 +288,6 @@ class MdmMetricsGenerator
       deviceName = nil
       hostName = nil
       begin
-        @log.info "In getDiskUsageMetricRecords..."
         if !record["fields"].nil?
           usedPercent = record["fields"]["used_percent"]
         end

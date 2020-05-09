@@ -66,4 +66,5 @@ class Constants
     CONTAINER_RESOURCE_UTIL_HEART_BEAT_EVENT = "ContainerResourceUtilMdmHeartBeatEvent"
     # TELEGRAF_METRICS_HEART_BEAT_EVENT = "TelegrafMetricsMdmHeartBeatEvent"
     TELEMETRY_FLUSH_INTERVAL_IN_MINUTES = 10
+    MDM_TIME_SERIES_FLUSHED_IN_LAST_HOUR = "MdmTimeSeriesFlushedInLastHour"
 end

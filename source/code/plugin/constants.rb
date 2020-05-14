@@ -16,7 +16,7 @@ class Constants
 
     # MDM Metric names
     MDM_OOM_KILLED_CONTAINER_COUNT = "oomKilledContainerCount"
-    MDM_CONTAINER_RESTART_COUNT = "containerRestartCount"
+    MDM_CONTAINER_RESTART_COUNT = "restartingContainerCount"
     MDM_POD_READY_PERCENTAGE = "podReadyPercentage"
     MDM_STALE_COMPLETED_JOB_COUNT = "completedJobsCount"
     MDM_DISK_USED_PERCENTAGE = "diskUsedPercentage"

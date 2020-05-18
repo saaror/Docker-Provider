@@ -266,6 +266,7 @@ module Fluent
         response.value # this throws for non 200 HTTP response code
         @log.info "HTTP Post Response Code : #{response.code}"
         @metrics_flushed_count += post_body.size
+        @log.info "throttling - metrics flushed: #{post_body.size}"
         if @last_telemetry_sent_time.nil? || @last_telemetry_sent_time + 60 * 60 < Time.now
           ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMSendSuccessful", {})
           ApplicationInsightsUtility.sendMetricTelemetry(Constants::MDM_TIME_SERIES_FLUSHED_IN_LAST_HOUR, @metrics_flushed_count, {})

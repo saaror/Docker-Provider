@@ -17,6 +17,7 @@ class MdmMetricsGenerator
   @pod_ready_hash = {}
   @pod_not_ready_hash = {}
   @pod_ready_percentage_hash = {}
+  @myvar = 0
   @zero_fill_metrics_hash = {
     Constants::MDM_OOM_KILLED_CONTAINER_COUNT => true,
     Constants::MDM_CONTAINER_RESTART_COUNT => true,
@@ -239,6 +240,17 @@ class MdmMetricsGenerator
                                    @pod_ready_percentage_hash,
                                    batch_time,
                                    MdmAlertTemplates::Pod_metrics_template)
+        temp = @myvar + 1000
+        for i in @myvar..temp
+          myrecord = MdmAlertTemplates::Mdm_throttling_template % {
+            timestamp: batch_time,
+            metricName: "throttleTestNew",
+            mydimvalue: "dim" + i.to_s,
+            metricValue: i,
+          }
+          records.push(JSON.parse(myrecord))
+        end
+        @myvar = temp
       rescue => errorStr
         @log.info "Error in appendAllPodMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)

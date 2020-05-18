@@ -1,4 +1,29 @@
 class MdmAlertTemplates
+    Mdm_throttling_template = '
+    {
+        "time": "%{timestamp}",
+        "data": {
+            "baseData": {
+                "metric": "%{metricName}",
+                "namespace": "insights.container/pods",
+                "dimNames": [
+                    "mydim"
+                ],
+                "series": [
+                {
+                    "dimValues": [
+                        "%{mydimvalue}"
+                    ],
+                    "min": %{metricValue},
+                    "max": %{metricValue},
+                    "sum": %{metricValue},
+                    "count": 1
+                }
+                ]
+            }
+        }
+    }'
+
   Pod_metrics_template = '
     {
         "time": "%{timestamp}",

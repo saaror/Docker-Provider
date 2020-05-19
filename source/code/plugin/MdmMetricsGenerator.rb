@@ -358,24 +358,24 @@ class MdmMetricsGenerator
       return records
     end
 
-    def generateOOMKilledPodMetrics(podControllerName, podNamespace)
+    def generateOOMKilledContainerMetrics(podControllerName, podNamespace)
       begin
         dim_key = [podControllerName, podNamespace].join("~~")
         @log.info "adding dimension key to oom killed container hash..."
         @oom_killed_container_count_hash[dim_key] = @oom_killed_container_count_hash.key?(dim_key) ? @oom_killed_container_count_hash[dim_key] + 1 : 1
       rescue => errorStr
-        @log.warn "Error in generateOOMKilledPodMetrics: #{errorStr}"
+        @log.warn "Error in generateOOMKilledContainerMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
     end
 
-    def generateContainerRestartsMetrics(podControllerName, podNamespace)
+    def generateRestartingContainersMetrics(podControllerName, podNamespace)
       begin
         dim_key = [podControllerName, podNamespace].join("~~")
         @log.info "adding dimension key to container restart count hash..."
         @container_restart_count_hash[dim_key] = @container_restart_count_hash.key?(dim_key) ? @container_restart_count_hash[dim_key] + 1 : 1
       rescue => errorStr
-        @log.warn "Error in generateContainerRestartsMetrics: #{errorStr}"
+        @log.warn "Error in generateRestartingContainersMetrics: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
     end

@@ -205,7 +205,7 @@ class Inventory2MdmConvertor
         if podControllerNameDimValue.nil? || podControllerNameDimValue.empty?
           podControllerNameDimValue = "No Controller"
         end
-        MdmMetricsGenerator.generateOOMKilledPodMetrics(podControllerNameDimValue,
+        MdmMetricsGenerator.generateOOMKilledContainerMetrics(podControllerNameDimValue,
                                                         podNamespaceDimValue)
       end
     rescue => errorStr
@@ -223,7 +223,7 @@ class Inventory2MdmConvertor
         if podControllerNameDimValue.nil? || podControllerNameDimValue.empty?
           podControllerNameDimValue = "No Controller"
         end
-        MdmMetricsGenerator.generateContainerRestartsMetrics(podControllerNameDimValue,
+        MdmMetricsGenerator.generateRestartingContainersMetrics(podControllerNameDimValue,
                                                              podNamespaceDimValue)
       end
     rescue => errorStr

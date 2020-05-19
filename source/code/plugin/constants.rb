@@ -20,10 +20,6 @@ class Constants
     MDM_POD_READY_PERCENTAGE = "podReadyPercentage"
     MDM_STALE_COMPLETED_JOB_COUNT = "completedJobsCount"
     MDM_DISK_USED_PERCENTAGE = "diskUsedPercentage"
-    # MDM_NETWORK_ERR_IN = "NetworkErrIn"
-    # MDM_NETWORK_ERR_OUT = "NetworkErrOut"
-    # MDM_API_SERVER_ERROR_REQUEST = "errorRequestCount"
-    # MDM_API_SERVER_REQUEST_LATENCIES = "requestLatency"
     MDM_CONTAINER_CPU_UTILIZATION_METRIC = "cpuExceededPercentage"
     MDM_CONTAINER_MEMORY_RSS_UTILIZATION_METRIC = "memoryRssExceededPercentage"
     MDM_CONTAINER_MEMORY_WORKING_SET_UTILIZATION_METRIC = "memoryWorkingSetExceededPercentage"
@@ -46,25 +42,13 @@ class Constants
     CONTAINER_STATE_TERMINATED = "terminated"
     STALE_JOB_TIME_IN_MINUTES = 360
     TELEGRAF_DISK_METRICS = "container.azm.ms/disk"
-    # TELEGRAF_NETWORK_METRICS = "container.azm.ms/net"
-    # TELEGRAF_PROMETHEUS_METRICS = "container.azm.ms/prometheus"
-    # PROM_API_SERVER_REQ_COUNT = "apiserver_request_count"
-    # PROM_API_SERVER_REQ_LATENCIES_SUMMARY_SUM = "apiserver_request_latencies_summary_sum"
-    # PROM_API_SERVER_REQ_LATENCIES_SUMMARY_COUNT = "apiserver_request_latencies_summary_count"
-    # API_SERVER_REQUEST_VERB_GET = "get"
-    # API_SERVER_REQUEST_VERB_PUT = "put"
     OMSAGENT_ZERO_FILL = "omsagent"
     KUBESYSTEM_NAMESPACE_ZERO_FILL = "kube-system"
-
-
-    # CLIENT_ERROR_CATEGORY = "clientErrors(429)"
-    # SERVER_ERROR_CATEGORY = "serverErrors(5*)"
 
     #Telemetry constants
     CONTAINER_METRICS_HEART_BEAT_EVENT = "ContainerMetricsMdmHeartBeatEvent"
     POD_READY_PERCENTAGE_HEART_BEAT_EVENT = "PodReadyPercentageMdmHeartBeatEvent"
     CONTAINER_RESOURCE_UTIL_HEART_BEAT_EVENT = "ContainerResourceUtilMdmHeartBeatEvent"
-    # TELEGRAF_METRICS_HEART_BEAT_EVENT = "TelegrafMetricsMdmHeartBeatEvent"
     TELEMETRY_FLUSH_INTERVAL_IN_MINUTES = 10
     MDM_TIME_SERIES_FLUSHED_IN_LAST_HOUR = "MdmTimeSeriesFlushedInLastHour"
 end

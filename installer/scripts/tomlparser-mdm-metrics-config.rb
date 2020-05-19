@@ -2,14 +2,15 @@
 
 require_relative "tomlrb"
 require_relative "ConfigParseErrorLogger"
+require_relative "microsoft/omsagent/plugin/constants"
 
 @configMapMountPath = "/etc/config/settings/mdm-metrics-configuration-settings"
 @configVersion = ""
 @configSchemaVersion = ""
 # Setting default values which will be used in case they are not set in the configmap or if configmap doesnt exist
-@percentageCpuUsageThreshold = 95.0
-@percentageMemoryRssThreshold = 95.0
-@percentageMemoryWorkingSetThreshold = 95.0
+@percentageCpuUsageThreshold = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
+@percentageMemoryRssThreshold = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
+@percentageMemoryWorkingSetThreshold = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
 
 # Use parser to parse the configmap toml file to a ruby structure
 def parseConfigMap
@@ -44,9 +45,9 @@ def populateSettingValuesFromConfigMap(parsedConfig)
       end
     rescue => errorStr
       ConfigParseErrorLogger.logError("Exception while reading config map settings for MDM metric configuration settings for resource utilization - #{errorStr}, using defaults, please check config map for errors")
-      @percentageCpuUsageThreshold = 95.0
-      @percentageMemoryRssThreshold = 95.0
-      @percentageMemoryWorkingSetThreshold = 95.0
+      @percentageCpuUsageThreshold = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
+      @percentageMemoryRssThreshold = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
+      @percentageMemoryWorkingSetThreshold = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
     end
   end
 end

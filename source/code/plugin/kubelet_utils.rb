@@ -76,31 +76,20 @@ class KubeletUtils
                 # containerName = "No name"
                 containerName = container["name"]
                 key = clusterId + "/" + podUid + "/" + containerName
-                @log.info "key: #{key}"
                 containerResourceDimensionHash[key] = [containerName, podName, controllerName, podNameSpace].join("~~")
                 if !container["resources"].nil? && !container["resources"]["limits"].nil? && !containerName.nil?
                   cpuLimit = container["resources"]["limits"]["cpu"]
                   memoryLimit = container["resources"]["limits"]["memory"]
-                  # key = clusterId + "/" + podUid + "/" + containerName
-                  # @log.info "key: #{key}"
                   @log.info "cpuLimit: #{cpuLimit}"
                   @log.info "memoryLimit: #{memoryLimit}"
-
-                  # containerResourceDimensionHash[key] = [containerName, podName, controllerName, podNameSpace].join("~~")
-                  #   # Convert cpu limit from nanocores to millicores
-                  #   cpuLimitInNanoCores = KubernetesApiClient.getMetricNumericValue("cpu", cpuLimit)
-                  #   cpuLimitInMilliCores = cpuLimitInNanoCores / 1000000
-
                   # Get cpu limit in nanocores
                   containerCpuLimitHash[key] = !cpuLimit.nil? ? KubernetesApiClient.getMetricNumericValue("cpu", cpuLimit) : 0
-
                   # Get memory limit in bytes
                   containerMemoryLimitHash[key] = !memoryLimit.nil? ? KubernetesApiClient.getMetricNumericValue("memory", memoryLimit) : 0
                 end
               end
             end
           end
-          # return [cpu_capacity, memory_capacity]
         end
       rescue => errorStr
         @log.info "Error in get_all_container_limits: #{errorStr}"

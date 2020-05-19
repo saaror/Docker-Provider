@@ -14,8 +14,6 @@ require_relative "constants"
 class Inventory2MdmConvertor
   @@node_count_metric_name = "nodesCount"
   @@pod_count_metric_name = "podCount"
-  #   @@oom_killed_container_count_metric_name = "OomKilledContainerCount"
-  #   @container_restart_count_metric_name = "ContainerRestartCount"
   @@pod_inventory_tag = "mdm.kubepodinventory"
   @@node_inventory_tag = "mdm.kubenodeinventory"
   @@node_status_ready = "Ready"
@@ -102,7 +100,6 @@ class Inventory2MdmConvertor
           pod_key = [key, phase].join("~~")
           if !@pod_count_hash.key?(pod_key)
             @pod_count_hash[pod_key] = 0
-            #@log.info "Zero filled #{pod_key}"
           else
             next
           end
@@ -159,26 +156,6 @@ class Inventory2MdmConvertor
     @pod_uids = {}
     return records
   end
-
-  #   def process_record_for_oom_killed_metric(containerLastStatus, podControllerNameDimValue, podNamespaceDimValue)
-  #     begin
-  #       @log.info "in process_record_for_oom_killed_metric..."
-  #       # Generate metric if 'reason' for lastState is 'OOMKilled'
-  #       if !containerLastStatus.nil? && !containerLastStatus.empty?
-  #         reason = containerLastStatus["reason"]
-  #         if !reason.nil? &&
-  #            !reason.empty? &&
-  #            reason.downcase == @@oom_killed
-  #           MdmMetricsGenerator.generatePodMetrics(MdmMetrics::OOM_KILLED_CONTAINER_COUNT,
-  #                                                  podControllerNameDimValue,
-  #                                                  podNamespaceDimValue)
-  #         end
-  #       end
-  #     rescue => errorStr
-  #       @log.warn("Exception in process_record_for_oom_killed_metric: #{errorStr}")
-  #       ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-  #     end
-  #   end
 
   # Check if container was terminated in the last 5 minutes
   def is_container_terminated_recently(finishedTime)
@@ -272,7 +249,6 @@ class Inventory2MdmConvertor
             finishedTimeParsed = Time.parse(containerFinishedTime)
             # Check to see if job was completed 6 hours ago/STALE_JOB_TIME_IN_MINUTES
             if ((Time.now - finishedTimeParsed) / 60) > Constants::STALE_JOB_TIME_IN_MINUTES
-              # return true
               MdmMetricsGenerator.generateStaleJobCountMetrics(podControllerNameDimValue,
                                                                podNamespaceDimValue)
             end
@@ -292,7 +268,6 @@ class Inventory2MdmConvertor
 
         podUid = record["DataItems"][0]["PodUid"]
         if @pod_uids.key?(podUid)
-          #@log.info "pod with #{podUid} already counted"
           return
         end
 
@@ -326,11 +301,6 @@ class Inventory2MdmConvertor
           @no_phase_dim_values_hash[key_without_phase_dim_value] = true
         end
 
-        #Generate OOM killed mdm metric
-        # process_record_for_oom_killed_metric(record["DataItems"][0]["ContainerLastStatus"], podControllerNameDimValue, podNamespaceDimValue)
-        #Generate Container restarts mdm metric
-        # process_record_for_container_restarts_metric(record["DataItems"][0]["ContainerRestartCount"], podControllerNameDimValue, podNamespaceDimValue)
-        # process_record_for_container_restarts_metric(record["DataItems"][0]["PodRestartCount"], podControllerNameDimValue, podNamespaceDimValue)
       rescue Exception => e
         @log.info "Error processing pod inventory record Exception: #{e.class} Message: #{e.message}"
         ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)

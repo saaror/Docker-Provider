@@ -171,34 +171,6 @@ module Fluent
       @cached_access_token
     end
 
-    def write_cached_access_token
-      accessTokenFile = "/var/opt/microsoft/omsagent/MDMAccessToken"
-      begin
-        tokenFile = File.open(accessTokenFile, "w")
-        # using the LOCK_NB - no block option so that this method doesnt make a blocking call and wait for the lock indefinitely.
-        # Instead, if we fail to get the lock, we sleep and retry again.
-        # flock(File::LOCK_EX | File::LOCK_NB) - Returns false or 0 if lock already exists on the file.
-        if (not tokenFile.flock(File::LOCK_EX | File::LOCK_NB))
-          @log.debug "Another process has a lock on the file, sleeping to retry again."
-          sleep 10
-          if (not tokenFile.flock(File::LOCK_EX | File::LOCK_NB))
-            @log.debug "Another process has a lock on the file, unable to access file to update MDM token."
-          else
-            # Write access token to file and unlock
-            tokenFile.write(@cached_access_token)
-            tokenFile.flock(File::LOCK_UN)
-          end
-        else
-          # Write access token to file and unlock
-          tokenFile.write(@cached_access_token)
-          tokenFile.flock(File::LOCK_UN)
-        end
-      rescue => errorStr
-        @log.debug "Error in write_cached_access_token:'#{errorStr}'"
-        ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
-      end
-    end
-
     def write_status_file(success, message)
       fn = "/var/opt/microsoft/omsagent/log/MDMIngestion.status"
       status = '{ "operation": "MDMIngestion", "success": "%s", "message": "%s" }' % [success, message]
@@ -265,12 +237,9 @@ module Fluent
         response = @http_client.request(request)
         response.value # this throws for non 200 HTTP response code
         @log.info "HTTP Post Response Code : #{response.code}"
-        @metrics_flushed_count += post_body.size
         if @last_telemetry_sent_time.nil? || @last_telemetry_sent_time + 60 * 60 < Time.now
           ApplicationInsightsUtility.sendCustomEvent("AKSCustomMetricsMDMSendSuccessful", {})
-          ApplicationInsightsUtility.sendMetricTelemetry(Constants::MDM_TIME_SERIES_FLUSHED_IN_LAST_HOUR, @metrics_flushed_count, {})
           @last_telemetry_sent_time = Time.now
-          @metrics_flushed_count = 0
         end
       rescue Net::HTTPServerException => e
         @log.info "Failed to Post Metrics to MDM : #{e} Response: #{response}"

@@ -6,7 +6,6 @@ module Fluent
   require "logger"
   require "yajl/json_gem"
   require_relative "oms_common"
-  # require_relative "CustomMetricsUtils"
   require_relative "kubelet_utils"
   require_relative "MdmMetricsGenerator"
   require_relative "constants"
@@ -39,7 +38,6 @@ module Fluent
       begin
         @process_incoming_stream = CustomMetricsUtils.check_custom_metrics_availability(@custom_metrics_azure_regions)
         @log.debug "After check_custom_metrics_availability process_incoming_stream #{@process_incoming_stream}"
-        # @@telegrafMetricsTelemetryTimeTracker = DateTime.now.to_time.to_i
       rescue => errorStr
         @log.info "Error initializing plugin #{errorStr}"
       end
@@ -55,12 +53,6 @@ module Fluent
         if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_DISK_METRICS
           return MdmMetricsGenerator.getDiskUsageMetricRecords(record)
         end
-        # if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_NETWORK_METRICS
-        #   return MdmMetricsGenerator.getNetworkErrorMetricRecords(record)
-        # end
-        # if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_PROMETHEUS_METRICS
-        #   return MdmMetricsGenerator.getPrometheusMetricRecords(record)
-        # end
         return []
       rescue Exception => errorStr
         @log.info "Error processing telegraf record Exception: #{errorStr}"
@@ -78,16 +70,6 @@ module Fluent
             new_es.add(time, filtered_record) if filtered_record
           } if filtered_records
         }
-
-        #Send heartbeat telemetry if flush interval is exceeded
-        # timeDifference = (DateTime.now.to_time.to_i - @@telegrafMetricsTelemetryTimeTracker).abs
-        # timeDifferenceInMinutes = timeDifference / 60
-        # if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
-        #   MdmMetricsGenerator.flushTelegrafMdmMetricTelemetry
-        #   # properties = {}
-        #   # ApplicationInsightsUtility.sendCustomEvent(Constants::TELEGRAF_METRICS_HEART_BEAT_EVENT, properties)
-        #   @@telegrafMetricsTelemetryTimeTracker = DateTime.now.to_time.to_i
-        # end
       rescue => e
         @log.info "Error in filter_stream #{e.message}"
       end

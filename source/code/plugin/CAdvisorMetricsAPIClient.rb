@@ -453,6 +453,41 @@ class CAdvisorMetricsAPIClient
               metricProps["Collections"].push(metricCollections)
               metricItem["DataItems"].push(metricProps)
               metricItems.push(metricItem)
+              #Telemetry about agent performance
+              begin
+                # we can only do this much now. Ideally would like to use the docker image repository to find our pods/containers
+                # cadvisor does not have pod/container metadata. so would need more work to cache as pv & use
+                if (podName.downcase.start_with?("omsagent-") && podNamespace.eql?("kube-system") && containerName.downcase.start_with?("omsagent"))
+                  if (timeDifferenceInMinutes >= 10)
+                    telemetryProps = {}
+                    telemetryProps["PodName"] = podName
+                    telemetryProps["ContainerName"] = containerName
+                    telemetryProps["Computer"] = hostName
+                    telemetryProps["CAdvisorIsSecure"] = @cAdvisorMetricsSecurePort
+                    #telemetry about log collections settings
+                    if (File.file?(@configMapMountPath))
+                      telemetryProps["clustercustomsettings"] = true
+                      telemetryProps["clusterenvvars"] = @clusterEnvVarCollectionEnabled
+                      telemetryProps["clusterstderrlogs"] = @clusterStdErrLogCollectionEnabled
+                      telemetryProps["clusterstdoutlogs"] = @clusterStdOutLogCollectionEnabled
+                      telemetryProps["clusterlogtailexcludepath"] = @clusterLogTailExcludPath
+                      telemetryProps["clusterLogTailPath"] = @clusterLogTailPath
+                      telemetryProps["clusterAgentSchemaVersion"] = @clusterAgentSchemaVersion
+                      telemetryProps["clusterCLEnrich"] = @clusterContainerLogEnrich
+                    end
+                    #telemetry about prometheus metric collections settings for daemonset
+                    if (File.file?(@promConfigMountPath))
+                      telemetryProps["dsPromInt"] = @dsPromInterval
+                      telemetryProps["dsPromFPC"] = @dsPromFieldPassCount
+                      telemetryProps["dsPromFDC"] = @dsPromFieldDropCount
+                      telemetryProps["dsPromUrl"] = @dsPromUrlCount
+                    end
+                    ApplicationInsightsUtility.sendMetricTelemetry(metricNametoReturn, metricValue, telemetryProps)
+                  end
+                end
+              rescue => errorStr
+                $log.warn("Exception while generating Telemetry from getcontainerCpuMetricItems failed: #{errorStr} for metric #{cpuMetricNameToCollect}")
+              end
             end
           end
         end
@@ -480,7 +515,7 @@ class CAdvisorMetricsAPIClient
       return metricItems
     end
 
-    def getContainerMemoryMetricItems(metricJSON, hostName, memoryMetricNameToCollect, metricNametoReturn, metricPollTime)
+    def getContainerMemoryMetricItems(metricJSON, hostName, memoryMetricNameToCollect, metricNametoReturn, metricPollTime, operatingSystem)
       metricItems = []
       clusterId = KubernetesApiClient.getClusterId
       timeDifference = (DateTime.now.to_time.to_i - @@telemetryMemoryMetricTimeTracker).abs
@@ -518,7 +553,7 @@ class CAdvisorMetricsAPIClient
               begin
                 # we can only do this much now. Ideally would like to use the docker image repository to find our pods/containers
                 # cadvisor does not have pod/container metadata. so would need more work to cache as pv & use
-                if (podName.downcase.start_with?("omsagent-") && podNamespace.eql?("kube-system") && containerName.downcase.start_with?("omsagent") && metricNametoReturn.eql?(Constants::MEMORY_RSS_BYTES))
+                if (podName.downcase.start_with?("omsagent-") && podNamespace.eql?("kube-system") && containerName.downcase.start_with?("omsagent") && ((metricNametoReturn.eql?(Constants::MEMORY_RSS_BYTES) && operatingSystem == "Linux") || (metricNametoReturn.eql?(Constants::MEMORY_WORKING_SET_BYTES) && operatingSystem == "Windows")))
                   if (timeDifferenceInMinutes >= Constants::TELEMETRY_FLUSH_INTERVAL_IN_MINUTES)
                     telemetryProps = {}
                     telemetryProps["PodName"] = podName

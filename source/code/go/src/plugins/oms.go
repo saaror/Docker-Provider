@@ -70,6 +70,7 @@ const KubeMonAgentEventsFlushedEvent = "KubeMonAgentEventsFlushed"
 // ContainerLogPluginConfFilePath --> config file path for container log plugin
 const DaemonSetContainerLogPluginConfFilePath = "/etc/opt/microsoft/docker-cimprov/out_oms.conf"
 const ReplicaSetContainerLogPluginConfFilePath = "/etc/opt/microsoft/docker-cimprov/out_oms.conf"
+const WindowsContainerLogPluginConfFilePath = "/etc/omsagentwindows/out_oms.conf"
 
 // IPName for Container Log
 const IPName = "Containers"
@@ -97,7 +98,7 @@ var (
 	//KubeMonAgentEvents skip first flush
 	skipKubeMonEventsFlush bool
 	// enrich container logs (when true this will add the fields - timeofcommand, containername & containerimage)
-	enrichContainerLogs bool		
+	enrichContainerLogs bool
 	// container runtime engine configured on the kubelet
 	containerRuntime string
 )
@@ -141,8 +142,8 @@ var (
 
 var (
 	dockerCimprovVersion = "9.0.0.0"
-	agentName = "ContainerAgent"
-	userAgent = ""
+	agentName            = "ContainerAgent"
+	userAgent            = ""
 )
 
 // DataItem represents the object corresponding to the json that is sent by fluentbit tail plugin
@@ -222,19 +223,29 @@ const (
 
 func createLogger() *log.Logger {
 	var logfile *os.File
-	path := "/var/opt/microsoft/docker-cimprov/log/fluent-bit-out-oms-runtime.log"
-	if _, err := os.Stat(path); err == nil {
+
+	osType := os.Getenv("OS_TYPE")
+
+	var logPath string
+
+	if strings.Compare(strings.ToLower(osType), "windows") != 0 {
+		logPath = "/var/opt/microsoft/docker-cimprov/log/fluent-bit-out-oms-runtime.log"
+	} else {
+		logPath = "/etc/omsagentwindows/fluent-bit-out-oms-runtime.log"
+	}
+
+	if _, err := os.Stat(logPath); err == nil {
 		fmt.Printf("File Exists. Opening file in append mode...\n")
-		logfile, err = os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0600)
+		logfile, err = os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {
 			SendException(err.Error())
 			fmt.Printf(err.Error())
 		}
 	}
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
+	if _, err := os.Stat(logPath); os.IsNotExist(err) {
 		fmt.Printf("File Doesnt Exist. Creating file...\n")
-		logfile, err = os.Create(path)
+		logfile, err = os.Create(logPath)
 		if err != nil {
 			SendException(err.Error())
 			fmt.Printf(err.Error())
@@ -244,7 +255,7 @@ func createLogger() *log.Logger {
 	logger := log.New(logfile, "", 0)
 
 	logger.SetOutput(&lumberjack.Logger{
-		Filename:   path,
+		Filename:   logPath,
 		MaxSize:    10, //megabytes
 		MaxBackups: 1,
 		MaxAge:     28,   //days
@@ -525,7 +536,7 @@ func flushKubeMonAgentEventRecords() {
 				} else {
 					req, _ := http.NewRequest("POST", OMSEndpoint, bytes.NewBuffer(marshalled))
 					req.Header.Set("Content-Type", "application/json")
-					req.Header.Set("User-Agent", userAgent )
+					req.Header.Set("User-Agent", userAgent)
 					reqId := uuid.New().String()
 					req.Header.Set("X-Request-ID", reqId)
 					//expensive to do string len for every request, so use a flag
@@ -542,7 +553,7 @@ func flushKubeMonAgentEventRecords() {
 						Log("Failed to flush %d records after %s", len(laKubeMonAgentEventsRecords), elapsed)
 					} else if resp == nil || resp.StatusCode != 200 {
 						if resp != nil {
-							Log(" RequestId %s Status %s Status Code %d", reqId, resp.Status, resp.StatusCode)
+							Log("flushKubeMonAgentEventRecords: RequestId %s Status %s Status Code %d", reqId, resp.Status, resp.StatusCode)
 						}
 						Log("Failed to flush %d records after %s", len(laKubeMonAgentEventsRecords), elapsed)
 					} else {
@@ -616,7 +627,7 @@ func translateTelegrafMetrics(m map[interface{}]interface{}) ([]*laTelegrafMetri
 	return laMetrics, nil
 }
 
-//send metrics from Telegraf to LA. 1) Translate telegraf timeseries to LA metric(s) 2) Send it to LA as 'InsightsMetrics' fixed type
+// send metrics from Telegraf to LA. 1) Translate telegraf timeseries to LA metric(s) 2) Send it to LA as 'InsightsMetrics' fixed type
 func PostTelegrafMetricsToLA(telegrafRecords []map[interface{}]interface{}) int {
 	var laMetrics []*laTelegrafMetric
 
@@ -671,9 +682,9 @@ func PostTelegrafMetricsToLA(telegrafRecords []map[interface{}]interface{}) int 
 
 	//set headers
 	req.Header.Set("x-ms-date", time.Now().Format(time.RFC3339))
-	req.Header.Set("User-Agent", userAgent )
-	reqId := uuid.New().String()
-	req.Header.Set("X-Request-ID", reqId)
+	req.Header.Set("User-Agent", userAgent)
+	reqID := uuid.New().String()
+	req.Header.Set("X-Request-ID", reqID)
 
 	//expensive to do string len for every request, so use a flag
 	if ResourceCentric == true {
@@ -693,7 +704,7 @@ func PostTelegrafMetricsToLA(telegrafRecords []map[interface{}]interface{}) int 
 
 	if resp == nil || resp.StatusCode != 200 {
 		if resp != nil {
-			Log("PostTelegrafMetricsToLA::Error:(retriable) RequestID %s Response Status %v Status Code %v", reqId, resp.Status, resp.StatusCode)
+			Log("PostTelegrafMetricsToLA::Error:(retriable) RequestID %s Response Status %v Status Code %v", reqID, resp.Status, resp.StatusCode)
 		}
 		if resp != nil && resp.StatusCode == 429 {
 			UpdateNumTelegrafMetricsSentTelemetry(0, 1, 1)
@@ -756,7 +767,7 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 		stringMap := make(map[string]string)
 
 		logEntry := ToString(record["log"])
-		logEntryTimeStamp := ToString(record["time"])			
+		logEntryTimeStamp := ToString(record["time"])
 		stringMap["LogEntry"] = logEntry
 		stringMap["LogEntrySource"] = logEntrySource
 		stringMap["LogEntryTimeStamp"] = logEntryTimeStamp
@@ -833,9 +844,9 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		req, _ := http.NewRequest("POST", OMSEndpoint, bytes.NewBuffer(marshalled))
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("User-Agent", userAgent )
-		reqId := uuid.New().String()
-		req.Header.Set("X-Request-ID", reqId)
+		req.Header.Set("User-Agent", userAgent)
+		reqID := uuid.New().String()
+		req.Header.Set("X-Request-ID", reqID)
 		//expensive to do string len for every request, so use a flag
 		if ResourceCentric == true {
 			req.Header.Set("x-ms-AzureResourceId", ResourceID)
@@ -856,7 +867,7 @@ func PostDataHelper(tailPluginRecords []map[interface{}]interface{}) int {
 
 		if resp == nil || resp.StatusCode != 200 {
 			if resp != nil {
-				Log("RequestId %s Status %s Status Code %d", reqId, resp.Status, resp.StatusCode)
+				Log("PostDataHelper: RequestId %s Status %s Status Code %d", reqID, resp.Status, resp.StatusCode)
 			}
 			return output.FLB_RETRY
 		}
@@ -932,17 +943,17 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 	// whereas the prometheus scrape error hash needs to be refreshed every hour
 	ConfigErrorEvent = make(map[string]KubeMonAgentEventTags)
 	PromScrapeErrorEvent = make(map[string]KubeMonAgentEventTags)
-	// Initilizing this to true to skip the first kubemonagentevent flush since the errors are not populated at this time
+	// Initializing this to true to skip the first kubemonagentevent flush since the errors are not populated at this time
 	skipKubeMonEventsFlush = true
 
 	enrichContainerLogsSetting := os.Getenv("AZMON_CLUSTER_CONTAINER_LOG_ENRICH")
-		if (strings.Compare(enrichContainerLogsSetting, "true") == 0) {
-			enrichContainerLogs = true
-			Log("ContainerLogEnrichment=true \n")
-		} else {
-			enrichContainerLogs = false
-			Log("ContainerLogEnrichment=false \n")
-		}
+	if strings.Compare(enrichContainerLogsSetting, "true") == 0 {
+		enrichContainerLogs = true
+		Log("ContainerLogEnrichment=true \n")
+	} else {
+		enrichContainerLogs = false
+		Log("ContainerLogEnrichment=false \n")
+	}
 
 	pluginConfig, err := ReadConfiguration(pluginConfPath)
 	if err != nil {
@@ -953,19 +964,42 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 		log.Fatalln(message)
 	}
 
-	omsadminConf, err := ReadConfiguration(pluginConfig["omsadmin_conf_path"])
-	if err != nil {
-		message := fmt.Sprintf("Error Reading omsadmin configuration %s\n", err.Error())
-		Log(message)
-		SendException(message)
-		time.Sleep(30 * time.Second)
-		log.Fatalln(message)
-	}
-	OMSEndpoint = omsadminConf["OMS_ENDPOINT"]
-	Log("OMSEndpoint %s", OMSEndpoint)
+	osType := os.Getenv("OS_TYPE")
 
-	WorkspaceID = omsadminConf["WORKSPACE_ID"]
-	ResourceID = os.Getenv("customResourceId")
+	// Linux
+	if strings.Compare(strings.ToLower(osType), "windows") != 0 {
+		Log("Reading configuration for Linux from %s", pluginConfPath)
+		omsadminConf, err := ReadConfiguration(pluginConfig["omsadmin_conf_path"])
+		if err != nil {
+			message := fmt.Sprintf("Error Reading omsadmin configuration %s\n", err.Error())
+			Log(message)
+			SendException(message)
+			time.Sleep(30 * time.Second)
+			log.Fatalln(message)
+		}
+		OMSEndpoint = omsadminConf["OMS_ENDPOINT"]
+		WorkspaceID = omsadminConf["WORKSPACE_ID"]
+		// Populate Computer field
+		containerHostName, err1 := ioutil.ReadFile(pluginConfig["container_host_file_path"])
+		if err1 != nil {
+			// It is ok to log here and continue, because only the Computer column will be missing,
+			// which can be deduced from a combination of containerId, and docker logs on the node
+			message := fmt.Sprintf("Error when reading containerHostName file %s.\n It is ok to log here and continue, because only the Computer column will be missing, which can be deduced from a combination of containerId, and docker logs on the nodes\n", err.Error())
+			Log(message)
+			SendException(message)
+		} else {
+			Computer = strings.TrimSuffix(ToString(containerHostName), "\n")
+		}
+	} else {
+		// windows
+		Computer = os.Getenv("HOSTNAME")
+		WorkspaceID = os.Getenv("WSID")
+		logAnalyticsDomain := os.Getenv("DOMAIN")
+		OMSEndpoint = "https://" + WorkspaceID + ".ods." + logAnalyticsDomain + "/OperationalData.svc/PostJsonDataItems"
+	}
+
+	Log("OMSEndpoint %s", OMSEndpoint)
+	ResourceID = os.Getenv(envAKSResourceID)
 
 	if len(ResourceID) > 0 {
 		//AKS Scenario
@@ -984,16 +1018,15 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 		Log("ResourceID=%s", ResourceID)
 		Log("ResourceName=%s", ResourceName)
 	}
-	
-	// log runtime info for debug purpose
-	containerRuntime = os.Getenv(ContainerRuntimeEnv)		
-	Log("Container Runtime engine %s", containerRuntime)	
-	
 
-	//set useragent to be used by ingestion 
-	docker_cimprov_version := strings.TrimSpace(os.Getenv("DOCKER_CIMPROV_VERSION"))
-	if len(docker_cimprov_version) > 0 {
-		dockerCimprovVersion = docker_cimprov_version
+	// log runtime info for debug purpose
+	containerRuntime = os.Getenv(ContainerRuntimeEnv)
+	Log("Container Runtime engine %s", containerRuntime)
+
+	// set useragent to be used by ingestion
+	dockerCimprovVersionEnv := strings.TrimSpace(os.Getenv("DOCKER_CIMPROV_VERSION"))
+	if len(dockerCimprovVersionEnv) > 0 {
+		dockerCimprovVersion = dockerCimprovVersionEnv
 	}
 
 	userAgent = fmt.Sprintf("%s/%s", agentName, dockerCimprovVersion)
@@ -1015,16 +1048,6 @@ func InitializePlugin(pluginConfPath string, agentVersion string) {
 	Log("kubeMonAgentConfigEventFlushInterval = %d \n", kubeMonAgentConfigEventFlushInterval)
 	KubeMonAgentConfigEventsSendTicker = time.NewTicker(time.Minute * time.Duration(kubeMonAgentConfigEventFlushInterval))
 
-	// Populate Computer field
-	containerHostName, err := ioutil.ReadFile(pluginConfig["container_host_file_path"])
-	if err != nil {
-		// It is ok to log here and continue, because only the Computer column will be missing,
-		// which can be deduced from a combination of containerId, and docker logs on the node
-		message := fmt.Sprintf("Error when reading containerHostName file %s.\n It is ok to log here and continue, because only the Computer column will be missing, which can be deduced from a combination of containerId, and docker logs on the nodes\n", err.Error())
-		Log(message)
-		SendException(message)
-	}
-	Computer = strings.TrimSuffix(ToString(containerHostName), "\n")
 	Log("Computer == %s \n", Computer)
 
 	ret, err := InitializeTelemetryClient(agentVersion)

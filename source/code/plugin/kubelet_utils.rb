@@ -37,7 +37,7 @@ class KubeletUtils
         containerCpuLimitHash = {}
         containerMemoryLimitHash = {}
         containerResourceDimensionHash = {}
-        response = CAdvisorMetricsAPIClient.getContainerCapacityFromCAdvisor(winNode: nil)
+        response = CAdvisorMetricsAPIClient.getPodsFromCAdvisor(winNode: nil)
         if !response.nil? && !response.body.nil? && !response.body.empty?
           podInventory = Yajl::Parser.parse(StringIO.new(response.body))
           podInventory["items"].each do |items|

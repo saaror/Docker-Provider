@@ -34,7 +34,7 @@ var (
 	TelegrafMetricsSentCount float64
 	//Tracks the number of send errors between telemetry ticker periods (uses ContainerLogTelemetryTicker)
 	TelegrafMetricsSendErrorCount float64
-    //Tracks the number of 429 (throttle) errors between telemetry ticker periods (uses ContainerLogTelemetryTicker)
+	//Tracks the number of 429 (throttle) errors between telemetry ticker periods (uses ContainerLogTelemetryTicker)
 	TelegrafMetricsSend429ErrorCount float64
 )
 

@@ -21,14 +21,23 @@ func FLBPluginRegister(ctx unsafe.Pointer) int {
 // ctx (context) pointer to fluentbit context (state/ c code)
 func FLBPluginInit(ctx unsafe.Pointer) int {
 	Log("Initializing out_oms go plugin for fluentbit")
-	agentVersion := os.Getenv("AGENT_VERSION")
-	if strings.Compare(strings.ToLower(os.Getenv("CONTROLLER_TYPE")), "replicaset") == 0 {
-		Log("Using %s for plugin config \n", ReplicaSetContainerLogPluginConfFilePath)
-		InitializePlugin(ReplicaSetContainerLogPluginConfFilePath, agentVersion)
+	var agentVersion string
+	agentVersion = os.Getenv("AGENT_VERSION")
+
+	osType := os.Getenv("OS_TYPE")
+	if strings.Compare(strings.ToLower(osType), "windows") == 0 {
+		Log("Using %s for plugin config \n", WindowsContainerLogPluginConfFilePath)
+		InitializePlugin(WindowsContainerLogPluginConfFilePath, agentVersion)
 	} else {
-		Log("Using %s for plugin config \n", DaemonSetContainerLogPluginConfFilePath)
-		InitializePlugin(DaemonSetContainerLogPluginConfFilePath, agentVersion)
+		if strings.Compare(strings.ToLower(os.Getenv("CONTROLLER_TYPE")), "replicaset") == 0 {
+			Log("Using %s for plugin config \n", ReplicaSetContainerLogPluginConfFilePath)
+			InitializePlugin(ReplicaSetContainerLogPluginConfFilePath, agentVersion)
+		} else {
+			Log("Using %s for plugin config \n", DaemonSetContainerLogPluginConfFilePath)
+			InitializePlugin(DaemonSetContainerLogPluginConfFilePath, agentVersion)
+		}
 	}
+
 	enableTelemetry := output.FLBPluginConfigKey(ctx, "EnableTelemetry")
 	if strings.Compare(strings.ToLower(enableTelemetry), "true") == 0 {
 		telemetryPushInterval := output.FLBPluginConfigKey(ctx, "TelemetryPushIntervalSeconds")

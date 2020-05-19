@@ -1,6 +1,13 @@
 #!/usr/local/bin/ruby
 
-require_relative "tomlrb"
+#this should be require relative in Linux and require in windows, since it is a gem install on windows
+@os_type = ENV["OS_TYPE"]
+if !@os_type.nil? && !@os_type.empty? && @os_type.strip.casecmp("windows") == 0
+  require "tomlrb"
+else
+  require_relative "tomlrb"
+end
+
 require_relative "ConfigParseErrorLogger"
 
 @configMapMountPath = "/etc/config/settings/log-data-collection-settings"
@@ -187,4 +194,50 @@ if !file.nil?
 else
   puts "Exception while opening file for writing config environment variables"
   puts "****************End Config Processing********************"
+end
+
+
+=begin
+This section generates the file that will set the environment variables for windows. This script will be called by the main.ps1 script
+which is the ENTRYPOINT script for the windows aks log container
+=end
+
+def get_command_windows(env_variable_name, env_variable_value)
+  return "[System.Environment]::SetEnvironmentVariable(\"#{env_variable_name}\", \"#{env_variable_value}\", \"Process\")" + "\n" + "[System.Environment]::SetEnvironmentVariable(\"#{env_variable_name}\", \"#{env_variable_value}\", \"Machine\")" + "\n"
+end
+
+if !@os_type.nil? && !@os_type.empty? && @os_type.strip.casecmp("windows") == 0
+  # Write the settings to file, so that they can be set as environment variables
+  file = File.open("setenv.ps1", "w")
+
+  if !file.nil?
+    commands = get_command_windows('AZMON_COLLECT_STDOUT_LOGS', @collectStdoutLogs)
+    file.write(commands)
+    commands = get_command_windows('AZMON_LOG_TAIL_PATH', @logTailPath)
+    file.write(commands)
+    commands = get_command_windows('AZMON_LOG_EXCLUSION_REGEX_PATTERN', @stdoutExcludeNamespaces)
+    file.write(commands)
+    commands = get_command_windows('AZMON_STDOUT_EXCLUDED_NAMESPACES', @stdoutExcludeNamespaces)
+    file.write(commands)
+    commands = get_command_windows('AZMON_COLLECT_STDERR_LOGS', @collectStderrLogs)
+    file.write(commands)
+    commands = get_command_windows('AZMON_STDERR_EXCLUDED_NAMESPACES', @stderrExcludeNamespaces)
+    file.write(commands)
+    commands = get_command_windows('AZMON_CLUSTER_COLLECT_ENV_VAR', @collectClusterEnvVariables)
+    file.write(commands)
+    commands = get_command_windows('AZMON_CLUSTER_LOG_TAIL_EXCLUDE_PATH', @excludePath)
+    file.write(commands)
+    commands = get_command_windows('AZMON_CLUSTER_CONTAINER_LOG_ENRICH', @enrichContainerLogs)
+    file.write(commands)
+    commands = get_command_windows('AZMON_CLUSTER_COLLECT_ALL_KUBE_EVENTS', @collectAllKubeEvents)
+    file.write(commands)
+
+    # Close file after writing all environment variables
+    file.close
+    puts "Both stdout & stderr log collection are turned off for namespaces: '#{@excludePath}' "
+    puts "****************End Config Processing********************"
+  else
+    puts "Exception while opening file for writing config environment variables for WINDOWS LOG"
+    puts "****************End Config Processing********************"
+  end
 end

@@ -4,6 +4,7 @@
 class KubernetesContainerInventory
   require "yajl/json_gem"
   require "time"
+  require "json"
   require_relative "omslog"
   require_relative "ApplicationInsightsUtility"
   
@@ -203,11 +204,11 @@ class KubernetesContainerInventory
               envVars = File.read(environFilePath, 200000)             
               if !envVars.nil? && !envVars.empty?
                 envVars = envVars.split("\0")
-                envValueString = envVars.to_s
+                envValueString = envVars.to_json
                 envValueStringLength = envValueString.length
                 $log.info("KubernetesContainerInventory::environment vars filename @ #{environFilePath} envVars size @ #{envValueStringLength}")
                 if envValueStringLength >= 200000
-                  lastIndex = envValueString.rindex("\", ")
+                  lastIndex = envValueString.rindex("\",")
                   if !lastIndex.nil?
                     envValueStringTruncated = envValueString.slice(0..lastIndex) + "]"
                     envValueString = envValueStringTruncated
@@ -278,7 +279,7 @@ class KubernetesContainerInventory
             end
             envVars.push("#{key}=#{value}")
           end
-          envValueString = envVars.to_s
+          envValueString = envVars.to_json
           containerName = container["name"]
           # Skip environment variable processing if it contains the flag AZMON_COLLECT_ENV=FALSE
           # Check to see if the environment variable collection is disabled for this container.
@@ -289,7 +290,7 @@ class KubernetesContainerInventory
             # Restricting the ENV string value to 200kb since the size of this string can go very high
             if envValueString.length > 200000
               envValueStringTruncated = envValueString.slice(0..200000)
-              lastIndex = envValueStringTruncated.rindex("\", ")
+              lastIndex = envValueStringTruncated.rindex("\",")
               if !lastIndex.nil?
                 envValueString = envValueStringTruncated.slice(0..lastIndex) + "]"
               else

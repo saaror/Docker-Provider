@@ -44,13 +44,16 @@ def populateSettingValuesFromConfigMap(parsedConfig)
       end
     rescue => errorStr
       ConfigParseErrorLogger.logError("Exception while reading config map settings for MDM metric configuration settings for resource utilization - #{errorStr}, using defaults, please check config map for errors")
+      @percentageCpuUsageThreshold = 95.0
+      @percentageMemoryRssThreshold = 95.0
+      @percentageMemoryWorkingSetThreshold = 95.0
     end
   end
 end
 
 @configSchemaVersion = ENV["AZMON_AGENT_CFG_SCHEMA_VERSION"]
 puts "****************Start MDM Metrics Config Processing********************"
-if !@configSchemaVersion.nil? && !@configSchemaVersion.empty? && @configSchemaVersion.strip.casecmp("v1") == 0 #note v1 is the only supported schema version , so hardcoding it
+if !@configSchemaVersion.nil? && !@configSchemaVersion.empty? && @configSchemaVersion.strip.casecmp("v1") == 0 #note v1 is the only supported schema version, so hardcoding it
   configMapSettings = parseConfigMap
   if !configMapSettings.nil?
     populateSettingValuesFromConfigMap(configMapSettings)

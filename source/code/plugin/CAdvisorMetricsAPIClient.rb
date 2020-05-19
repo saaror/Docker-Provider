@@ -139,12 +139,12 @@ class CAdvisorMetricsAPIClient
           operatingSystem = "Linux"
         end
         if !metricInfo.nil?
-          metricDataItems.concat(getContainerMemoryMetricItems(metricInfo, hostName, "workingSetBytes", Constants::MEMORY_WORKING_SET_BYTES, metricTime))
+          metricDataItems.concat(getContainerMemoryMetricItems(metricInfo, hostName, "workingSetBytes", Constants::MEMORY_WORKING_SET_BYTES, metricTime, operatingSystem))
           metricDataItems.concat(getContainerStartTimeMetricItems(metricInfo, hostName, "restartTimeEpoch", metricTime))
 
           if operatingSystem == "Linux"
             metricDataItems.concat(getContainerCpuMetricItems(metricInfo, hostName, "usageNanoCores", Constants::CPU_USAGE_NANO_CORES, metricTime))
-            metricDataItems.concat(getContainerMemoryMetricItems(metricInfo, hostName, "rssBytes", Constants::MEMORY_RSS_BYTES, metricTime))
+            metricDataItems.concat(getContainerMemoryMetricItems(metricInfo, hostName, "rssBytes", Constants::MEMORY_RSS_BYTES, metricTime, operatingSystem))
             metricDataItems.push(getNodeMetricItem(metricInfo, hostName, "memory", "rssBytes", Constants::MEMORY_RSS_BYTES, metricTime))
           elsif operatingSystem == "Windows"
             containerCpuUsageNanoSecondsRate = getContainerCpuMetricItemRate(metricInfo, hostName, "usageCoreNanoSeconds", Constants::CPU_USAGE_NANO_CORES, metricTime)
@@ -597,7 +597,7 @@ class CAdvisorMetricsAPIClient
           metricProps = {}
           metricProps["Timestamp"] = metricTime
           metricProps["Host"] = hostName
-          metricProps["ObjectName"] = "K8SNode"
+          metricProps["ObjectName"] = Constants::OBJECT_NAME_K8S_NODE
           metricProps["InstanceName"] = clusterId + "/" + nodeName
 
           metricProps["Collections"] = []
@@ -714,7 +714,7 @@ class CAdvisorMetricsAPIClient
           metricProps = {}
           metricProps["Timestamp"] = metricTime
           metricProps["Host"] = hostName
-          metricProps["ObjectName"] = "K8SNode"
+          metricProps["ObjectName"] = Constants::OBJECT_NAME_K8S_NODE
           metricProps["InstanceName"] = clusterId + "/" + nodeName
 
           metricProps["Collections"] = []
@@ -750,7 +750,7 @@ class CAdvisorMetricsAPIClient
         metricProps = {}
         metricProps["Timestamp"] = metricTime
         metricProps["Host"] = hostName
-        metricProps["ObjectName"] = "K8SNode"
+        metricProps["ObjectName"] = Constants::OBJECT_NAME_K8S_NODE
         metricProps["InstanceName"] = clusterId + "/" + nodeName
 
         metricProps["Collections"] = []

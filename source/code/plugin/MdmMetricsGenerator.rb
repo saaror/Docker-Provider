@@ -144,9 +144,9 @@ class MdmMetricsGenerator
       begin
         @log.info "In zero fill metric records"
         zero_fill_dim_key = [Constants::OMSAGENT_ZERO_FILL, Constants::KUBESYSTEM_NAMESPACE_ZERO_FILL].join("~~")
-        @oom_killed_container_count_hash[zero_fill_dim_key] = @oom_killed_container_count_hash.key?(zero_fill_dim_key) ? @oom_killed_container_count_hash[dim_key] : 0
-        @container_restart_count_hash[zero_fill_dim_key] = @container_restart_count_hash.key?(zero_fill_dim_key) ? @container_restart_count_hash[dim_key] : 0
-        @stale_job_count_hash[zero_fill_dim_key] = @stale_job_count_hash.key?(zero_fill_dim_key) ? @stale_job_count_hash[dim_key] : 0
+        @oom_killed_container_count_hash[zero_fill_dim_key] = @oom_killed_container_count_hash.key?(zero_fill_dim_key) ? @oom_killed_container_count_hash[zero_fill_dim_key] : 0
+        @container_restart_count_hash[zero_fill_dim_key] = @container_restart_count_hash.key?(zero_fill_dim_key) ? @container_restart_count_hash[zero_fill_dim_key] : 0
+        @stale_job_count_hash[zero_fill_dim_key] = @stale_job_count_hash.key?(zero_fill_dim_key) ? @stale_job_count_hash[zero_fill_dim_key] : 0
 
         metric_threshold_hash = getContainerResourceUtilizationThresholds
         container_zero_fill_dims = [Constants::OMSAGENT_ZERO_FILL, Constants::OMSAGENT_ZERO_FILL, Constants::OMSAGENT_ZERO_FILL, Constants::KUBESYSTEM_NAMESPACE_ZERO_FILL].join("~~")

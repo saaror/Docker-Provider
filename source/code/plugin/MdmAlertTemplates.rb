@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class MdmAlertTemplates
   Pod_metrics_template = '
     {

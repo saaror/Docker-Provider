@@ -1,10 +1,11 @@
 #!/usr/local/bin/ruby
+# frozen_string_literal: true
 
 require_relative "tomlrb"
 require_relative "ConfigParseErrorLogger"
 require_relative "microsoft/omsagent/plugin/constants"
 
-@configMapMountPath = "/etc/config/settings/mdm-metrics-configuration-settings"
+@configMapMountPath = "/etc/config/settings/alertable-metrics-configuration-settings"
 @configVersion = ""
 @configSchemaVersion = ""
 # Setting default values which will be used in case they are not set in the configmap or if configmap doesnt exist
@@ -33,14 +34,38 @@ end
 
 # Use the ruby structure created after config parsing to set the right values to be used for MDM metric configuration settings
 def populateSettingValuesFromConfigMap(parsedConfig)
-  if !parsedConfig.nil? && !parsedConfig[:mdm_metrics_configuration_settings].nil?
+  if !parsedConfig.nil? && !parsedConfig[:alertable_metrics_configuration_settings].nil?
     # Get mdm metrics config settings for resource utilization
     begin
-      resourceUtilization = parsedConfig[:mdm_metrics_configuration_settings][:resource_utilization]
+      resourceUtilization = parsedConfig[:alertable_metrics_configuration_settings][:container_resource_utilization_thresholds]
       if !resourceUtilization.nil?
-        @percentageCpuUsageThreshold = resourceUtilization[:percentage_cpu_utilization_threshold]
-        @percentageMemoryRssThreshold = resourceUtilization[:percentage_memory_rss_threshold]
-        @percentageMemoryWorkingSetThreshold = resourceUtilization[:percentage_memory_working_set_threshold]
+        #Cpu
+        cpuThreshold = resourceUtilization[:container_cpu_threshold_percentage]
+        cpuThresholdFloat = cpuThreshold.to_f
+        if cpuThresholdFloat.kind_of? Float
+          @percentageCpuUsageThreshold = cpuThresholdFloat
+        else
+          puts "config::Non floating point value or value not convertible to float specified for Cpu threshold, using default "
+          @percentageCpuUsageThreshold = Constants::DEFAULT_MDM_CPU_UTILIZATION_THRESHOLD
+        end
+        #Memory Rss
+        memoryRssThreshold = resourceUtilization[:container_memory_rss_threshold_percentage]
+        memoryRssThresholdFloat = memoryRssThreshold.to_f
+        if memoryRssThresholdFloat.kind_of? Float
+          @percentageMemoryRssThreshold = memoryRssThresholdFloat
+        else
+          puts "config::Non floating point value or value not convertible to float specified for Memory Rss threshold, using default "
+          @percentageMemoryRssThreshold = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
+        end
+        #Memory Working Set
+        memoryWorkingSetThreshold = resourceUtilization[:container_memory_working_set_threshold_percentage]
+        memoryWorkingSetThresholdFloat = memoryWorkingSetThreshold.to_f
+        if memoryWorkingSetThresholdFloat.kind_of? Float
+          @percentageMemoryWorkingSetThreshold = memoryWorkingSetThresholdFloat
+        else
+          puts "config::Non floating point value or value not convertible to float specified for Memory Working Set threshold, using default "
+          @percentageMemoryWorkingSetThreshold = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
+        end
         puts "config::Using config map settings for MDM metric configuration settings for resource utilization"
       end
     rescue => errorStr
@@ -69,9 +94,9 @@ end
 file = File.open("config_mdm_metrics_env_var", "w")
 
 if !file.nil?
-  file.write("export AZMON_MDM_CPU_UTILIZATION_THRESHOLD=#{@percentageCpuUsageThreshold}\n")
-  file.write("export AZMON_MDM_MEMORY_RSS_THRESHOLD=#{@percentageMemoryRssThreshold}\n")
-  file.write("export AZMON_MDM_MEMORY_WORKING_SET_THRESHOLD=\"#{@percentageMemoryWorkingSetThreshold}\"\n")
+  file.write("export AZMON_ALERT_CONTAINER_CPU_THRESHOLD=#{@percentageCpuUsageThreshold}\n")
+  file.write("export AZMON_ALERT_CONTAINER_MEMORY_RSS_THRESHOLD=#{@percentageMemoryRssThreshold}\n")
+  file.write("export AZMON_ALERT_CONTAINER_MEMORY_WORKING_SET_THRESHOLD=\"#{@percentageMemoryWorkingSetThreshold}\"\n")
   # Close file after writing all MDM setting environment variables
   file.close
   puts "****************End MDM Metrics Config Processing********************"

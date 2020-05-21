@@ -178,7 +178,7 @@ module Fluent
         File.open(fn, "w") { |file| file.write(status) }
       rescue => e
         @log.debug "Error:'#{e}'"
-        ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
+        ApplicationInsightsUtility.sendExceptionTelemetry(e)
       end
     end
 
@@ -219,7 +219,7 @@ module Fluent
           end
         end
       rescue Exception => e
-        ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
+        ApplicationInsightsUtility.sendExceptionTelemetry(e)
         @log.info "Exception when writing to MDM: #{e}"
         raise e
       end
@@ -260,12 +260,12 @@ module Fluent
       rescue Errno::ETIMEDOUT => e
         @log.info "Timed out when POSTing Metrics to MDM : #{e} Response: #{response}"
         @log.debug_backtrace(e.backtrace)
-        ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
+        ApplicationInsightsUtility.sendExceptionTelemetry(e)
         raise e
       rescue Exception => e
         @log.info "Exception POSTing Metrics to MDM : #{e} Response: #{response}"
         @log.debug_backtrace(e.backtrace)
-        ApplicationInsightsUtility.sendExceptionTelemetry(e.backtrace)
+        ApplicationInsightsUtility.sendExceptionTelemetry(e)
         raise e
       end
     end

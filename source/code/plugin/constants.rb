@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Constants
     INSIGHTSMETRICS_TAGS_ORIGIN = "container.azm.ms"
     INSIGHTSMETRICS_TAGS_CLUSTERID = "container.azm.ms/clusterId"

@@ -3,6 +3,7 @@
 
 class MdmMetricsGenerator
   require "logger"
+  require "yajl/json_gem"
   require "json"
   require_relative "MdmAlertTemplates"
   require_relative "ApplicationInsightsUtility"
@@ -95,7 +96,7 @@ class MdmMetricsGenerator
               namespaceDimValue: podNamespaceDimValue,
               containerCountMetricValue: value,
             }
-            records.push(JSON.parse(record))
+            records.push(Yajl::Parser.parse(StringIO.new(record)))
           }
         else
           @log.info "No records found in hash for metric: #{metricName}"
@@ -250,7 +251,7 @@ class MdmMetricsGenerator
           containerResourceUtilizationPercentage: percentageMetricValue,
           thresholdPercentageDimValue: thresholdPercentage,
         }
-        records.push(JSON.parse(resourceUtilRecord))
+        records.push(Yajl::Parser.parse(StringIO.new(resourceUtilRecord)))
       rescue => errorStr
         @log.info "Error in getContainerResourceUtilMetricRecords: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
@@ -281,7 +282,7 @@ class MdmMetricsGenerator
             devicevalue: deviceName,
             diskUsagePercentageValue: usedPercent,
           }
-          records.push(JSON.parse(diskUsedPercentageRecord))
+          records.push(Yajl::Parser.parse(StringIO.new(diskUsedPercentageRecord)))
         end
       rescue => errorStr
         @log.info "Error in getDiskUsageMetricRecords: #{errorStr}"
@@ -298,20 +299,20 @@ class MdmMetricsGenerator
         metric_threshold_hash[Constants::MEMORY_RSS_BYTES] = Constants::DEFAULT_MDM_MEMORY_RSS_THRESHOLD
         metric_threshold_hash[Constants::MEMORY_WORKING_SET_BYTES] = Constants::DEFAULT_MDM_MEMORY_WORKING_SET_THRESHOLD
 
-        cpuThreshold = ENV["AZMON_MDM_CPU_UTILIZATION_THRESHOLD"]
+        cpuThreshold = ENV["AZMON_ALERT_CONTAINER_CPU_THRESHOLD"]
         if !cpuThreshold.nil? && !cpuThreshold.empty?
           #Rounding this to 2 decimal places, since this value is user configurable
           cpuThresholdFloat = (cpuThreshold.to_f).round(2)
           metric_threshold_hash[Constants::CPU_USAGE_NANO_CORES] = cpuThresholdFloat
         end
 
-        memoryRssThreshold = ENV["AZMON_MDM_MEMORY_RSS_THRESHOLD"]
+        memoryRssThreshold = ENV["AZMON_ALERT_CONTAINER_MEMORY_RSS_THRESHOLD"]
         if !memoryRssThreshold.nil? && !memoryRssThreshold.empty?
           memoryRssThresholdFloat = (memoryRssThreshold.to_f).round(2)
           metric_threshold_hash[Constants::MEMORY_RSS_BYTES] = memoryRssThresholdFloat
         end
 
-        memoryWorkingSetThreshold = ENV["AZMON_MDM_MEMORY_WORKING_SET_THRESHOLD"]
+        memoryWorkingSetThreshold = ENV["AZMON_ALERT_CONTAINER_MEMORY_WORKING_SET_THRESHOLD"]
         if !memoryWorkingSetThreshold.nil? && !memoryWorkingSetThreshold.empty?
           memoryWorkingSetThresholdFloat = (memoryWorkingSetThreshold.to_f).round(2)
           metric_threshold_hash[Constants::MEMORY_WORKING_SET_BYTES] = memoryWorkingSetThresholdFloat
@@ -336,7 +337,7 @@ class MdmMetricsGenerator
           metricmaxvalue: metric_value,
           metricsumvalue: metric_value,
         }
-        records.push(JSON.parse(custommetricrecord))
+        records.push(Yajl::Parser.parse(StringIO.new(custommetricrecord)))
 
         if !percentage_metric_value.nil?
           additional_record = MdmAlertTemplates::Node_resource_metrics_template % {
@@ -349,7 +350,7 @@ class MdmMetricsGenerator
             metricmaxvalue: percentage_metric_value,
             metricsumvalue: percentage_metric_value,
           }
-          records.push(JSON.parse(additional_record))
+          records.push(Yajl::Parser.parse(StringIO.new(additional_record)))
         end
       rescue => errorStr
         @log.info "Error in getNodeResourceMetricRecords: #{errorStr}"

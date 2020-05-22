@@ -1,12 +1,12 @@
 #!/bin/bash
 
 #test to exit non zero value if omsagent is not running
-# (ps -ef | grep omsagent- | grep -v "grep")
-# if [ $? -ne 0 ]
-# then
-#  echo "Agent is NOT running"
-#  exit 1
-# fi
+(ps -ef | grep omsagent- | grep -v "grep")
+if [ $? -ne 0 ]
+then
+ echo "Agent is NOT running"
+ exit 1
+fi
 
 #test to exit non zero value if fluentbit is not running
 (ps -ef | grep td-agent-bit | grep -v "grep")

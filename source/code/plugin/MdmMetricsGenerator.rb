@@ -265,29 +265,33 @@ class MdmMetricsGenerator
       deviceName = nil
       hostName = nil
       begin
-        if !record["fields"].nil?
-          usedPercent = record["fields"]["used_percent"]
-        end
-        if !record["tags"].nil?
-          deviceName = record["tags"]["device"]
-          hostName = record["tags"]["hostName"]
-        end
-        timestamp = record["timestamp"]
-        convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
-        if !usedPercent.nil? && !deviceName.nil? && !hostName.nil?
-          diskUsedPercentageRecord = MdmAlertTemplates::Disk_used_percentage_metrics_template % {
-            timestamp: convertedTimestamp,
-            metricName: Constants::MDM_DISK_USED_PERCENTAGE,
-            hostvalue: hostName,
-            devicevalue: deviceName,
-            diskUsagePercentageValue: usedPercent,
-          }
-          records.push(Yajl::Parser.parse(StringIO.new(diskUsedPercentageRecord)))
+        recordMessage = record["message"]
+        if !recordMessage.nil?
+          if !recordMessage["fields"].nil?
+            usedPercent = recordMessage["fields"]["used_percent"]
+          end
+          if !recordMessage["tags"].nil?
+            deviceName = recordMessage["tags"]["device"]
+            hostName = recordMessage["tags"]["hostName"]
+          end
+          timestamp = recordMessage["timestamp"]
+          convertedTimestamp = Time.at(timestamp.to_i).utc.iso8601
+          if !usedPercent.nil? && !deviceName.nil? && !hostName.nil?
+            diskUsedPercentageRecord = MdmAlertTemplates::Disk_used_percentage_metrics_template % {
+              timestamp: convertedTimestamp,
+              metricName: Constants::MDM_DISK_USED_PERCENTAGE,
+              hostvalue: hostName,
+              devicevalue: deviceName,
+              diskUsagePercentageValue: usedPercent,
+            }
+            records.push(Yajl::Parser.parse(StringIO.new(diskUsedPercentageRecord)))
+          end
         end
       rescue => errorStr
         @log.info "Error in getDiskUsageMetricRecords: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
+      @log.info "getDiskUsageMetricRecords: #{records}"
       return records
     end
 

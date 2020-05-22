@@ -50,7 +50,8 @@ module Fluent
     def filter(tag, time, record)
       begin
         @log.info "tag: #{tag}, time: #{time}, record: #{record}"
-        if !record["name"].nil? && record["name"].downcase == Constants::TELEGRAF_DISK_METRICS
+        recordMessage = record["message"]
+        if !recordMessage.nil? && !recordMessage["name"].nil? && recordMessage["name"].downcase == Constants::TELEGRAF_DISK_METRICS
           return MdmMetricsGenerator.getDiskUsageMetricRecords(record)
         end
         return []

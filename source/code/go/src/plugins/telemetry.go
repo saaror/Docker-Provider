@@ -3,13 +3,15 @@ package main
 import (
 	"encoding/base64"
 	"errors"
+	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Microsoft/ApplicationInsights-Go/appinsights"
-	"github.com/Microsoft/ApplicationInsights-Go/appinsights/contracts"
+	"github.com/microsoft/ApplicationInsights-Go/appinsights/contracts"
 	"github.com/fluent/fluent-bit-go/output"
 )
 
@@ -159,6 +161,25 @@ func InitializeTelemetryClient(agentVersion string) (int, error) {
 		Log("Overriding the default AppInsights EndpointUrl with %s", appInsightsEndpoint)
 		telemetryClientConfig.EndpointUrl = envAppInsightsEndpoint
 	}
+	// if the proxy configured set the customized httpclient with proxy
+	isProxyConfigured := false
+	if ProxyEndpoint != "" {
+		Log("Using proxy endpoint for telemetry client since proxy configured")
+		proxyEndpointUrl, err := url.Parse(ProxyEndpoint)
+		if err != nil {
+			Log("Failed Parsing of Proxy endpoint %s", err.Error())
+			return -1, err
+		}
+		//adding the proxy settings to the Transport object
+		transport := &http.Transport{
+			Proxy: http.ProxyURL(proxyEndpointUrl),
+		}
+		httpClient := &http.Client{
+			Transport: transport,
+		}
+		telemetryClientConfig.Client = httpClient
+		isProxyConfigured = true
+	}
 	TelemetryClient = appinsights.NewTelemetryClientFromConfig(telemetryClientConfig)
 
 	telemetryOffSwitch := os.Getenv("DISABLE_TELEMETRY")
@@ -199,6 +220,12 @@ func InitializeTelemetryClient(agentVersion string) (int, error) {
 		region := os.Getenv("AKS_REGION")
 		CommonProperties["Region"] = region
 	}
+
+	if isProxyConfigured == true {
+	  CommonProperties["IsProxyConfigured"] = "true"
+	} else {
+  	   CommonProperties["IsProxyConfigured"] = "false"
+    }
 
 	TelemetryClient.Context().CommonProperties = CommonProperties
 	return 0, nil

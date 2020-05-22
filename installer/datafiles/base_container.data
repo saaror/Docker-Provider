@@ -49,6 +49,7 @@ MAINTAINER:              'Microsoft Corporation'
 /opt/microsoft/omsagent/plugin/DockerApiRestHelper.rb;											source/code/plugin/DockerApiRestHelper.rb;			644; root; root
 /opt/microsoft/omsagent/plugin/in_containerinventory.rb;										source/code/plugin/in_containerinventory.rb;		644; root; root
 /opt/microsoft/omsagent/plugin/kubernetes_container_inventory.rb;							source/code/plugin/kubernetes_container_inventory.rb;		644; root; root
+/opt/microsoft/omsagent/plugin/proxy_utils.rb;						                  	source/code/plugin/proxy_utils.rb;		644; root; root
 
 
 /opt/microsoft/omsagent/plugin/out_mdm.rb;                                                  source/code/plugin/out_mdm.rb; 644; root; root

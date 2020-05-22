@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -69,6 +70,18 @@ func CreateHTTPClient() {
 
 	tlsConfig.BuildNameToCertificate()
 	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	// set the proxy if the proxy configured
+	if ProxyEndpoint != "" {
+		proxyEndpointUrl, err := url.Parse(ProxyEndpoint)
+		if err != nil {
+			message := fmt.Sprintf("Error parsing Proxy endpoint %s", err.Error())
+			SendException(message)
+			// if we fail to read proxy secret, AI telemetry might not be working as well
+			Log(message)
+		} else {
+			transport.Proxy = http.ProxyURL(proxyEndpointUrl)
+		}
+	}
 
 	HTTPClient = http.Client{
 		Transport: transport,

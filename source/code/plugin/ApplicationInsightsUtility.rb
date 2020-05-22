@@ -6,6 +6,7 @@ class ApplicationInsightsUtility
   require_relative "omslog"
   require_relative "DockerApiClient"
   require_relative "oms_common"
+  require_relative "proxy_utils"
   require "yajl/json_gem"
   require "base64"
 
@@ -21,10 +22,11 @@ class ApplicationInsightsUtility
   @@EnvApplicationInsightsEndpoint = "APPLICATIONINSIGHTS_ENDPOINT"
   @@EnvControllerType = "CONTROLLER_TYPE"
   @@EnvContainerRuntime = "CONTAINER_RUNTIME"
-
+  
   @@CustomProperties = {}
   @@Tc = nil
   @@hostName = (OMS::Common.get_hostname)
+  @@proxy = (ProxyUtils.getProxyConfiguration)
 
   def initialize
   end
@@ -66,6 +68,15 @@ class ApplicationInsightsUtility
         encodedAppInsightsKey = ENV[@@EnvApplicationInsightsKey]
         appInsightsEndpoint = ENV[@@EnvApplicationInsightsEndpoint]
         @@CustomProperties["WorkspaceCloud"] = getWorkspaceCloud
+        if !@@proxy.nil? && !@@proxy.empty?
+          $log.info("proxy configured")
+          @@CustomProperties["IsProxyConfigured"] = "true"
+          isProxyConfigured = true
+        else
+          @@CustomProperties["IsProxyConfigured"] = "false"
+          isProxyConfigured = false
+          $log.info("proxy is not configured")
+        end
 
         #Check if telemetry is turned off
         telemetryOffSwitch = ENV["DISABLE_TELEMETRY"]
@@ -81,12 +92,22 @@ class ApplicationInsightsUtility
             #telemetrySynchronousSender = ApplicationInsights::Channel::SynchronousSender.new appInsightsEndpoint
             #telemetrySynchronousQueue = ApplicationInsights::Channel::SynchronousQueue.new(telemetrySynchronousSender)
             #telemetryChannel = ApplicationInsights::Channel::TelemetryChannel.new nil, telemetrySynchronousQueue
-            sender = ApplicationInsights::Channel::AsynchronousSender.new appInsightsEndpoint
+            if !isProxyConfigured
+              sender = ApplicationInsights::Channel::AsynchronousSender.new appInsightsEndpoint
+            else
+              $log.info("AppInsightsUtility: Telemetry client uses provided proxy configuration since proxy configured")
+              sender = ApplicationInsights::Channel::AsynchronousSender.new appInsightsEndpoint, @@proxy
+            end
             queue = ApplicationInsights::Channel::AsynchronousQueue.new sender
             channel = ApplicationInsights::Channel::TelemetryChannel.new nil, queue
             @@Tc = ApplicationInsights::TelemetryClient.new decodedAppInsightsKey, telemetryChannel
           else
-            sender = ApplicationInsights::Channel::AsynchronousSender.new
+            if !isProxyConfigured
+              sender = ApplicationInsights::Channel::AsynchronousSender.new
+            else
+              $log.info("AppInsightsUtility: Telemetry client uses provided proxy configuration since proxy configured")
+              sender = ApplicationInsights::Channel::AsynchronousSender.new nil, @@proxy
+            end
             queue = ApplicationInsights::Channel::AsynchronousQueue.new sender
             channel = ApplicationInsights::Channel::TelemetryChannel.new nil, queue
             @@Tc = ApplicationInsights::TelemetryClient.new decodedAppInsightsKey, channel
@@ -119,7 +140,7 @@ class ApplicationInsightsUtility
         if containerRuntime.casecmp("docker") == 0
           dockerInfo = DockerApiClient.dockerInfo
           if (!dockerInfo.nil? && !dockerInfo.empty?)
-            @@CustomProperties["DockerVersion"] = dockerInfo["Version"]          
+            @@CustomProperties["DockerVersion"] = dockerInfo["Version"]
           end
         end
       end

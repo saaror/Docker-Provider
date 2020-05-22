@@ -21,7 +21,7 @@ module Fluent
       begin
         super
         require "yaml"
-        require 'yajl/json_gem'
+        require "yajl/json_gem"
         require "yajl"
         require "time"
 
@@ -88,30 +88,31 @@ module Fluent
         resourceUri = KubernetesApiClient.getNodesResourceUri("nodes")
         node_inventory_response = KubernetesApiClient.getKubeResourceInfo(resourceUri)
         if !node_inventory_response.nil? && !node_inventory_response.body.nil?
-            node_inventory = Yajl::Parser.parse(StringIO.new(node_inventory_response.body))
-            @resources.node_inventory = node_inventory
+          node_inventory = Yajl::Parser.parse(StringIO.new(node_inventory_response.body))
+          @resources.node_inventory = node_inventory
         end
 
         pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods?fieldSelector=metadata.namespace%3D#{@@KubeInfraNamespace}")
         if !pod_inventory_response.nil? && !pod_inventory_response.body.nil?
-            pod_inventory = Yajl::Parser.parse(StringIO.new(pod_inventory_response.body))
-            @resources.pod_inventory = pod_inventory
-            @resources.build_pod_uid_lookup
+          pod_inventory = Yajl::Parser.parse(StringIO.new(pod_inventory_response.body))
+          @resources.pod_inventory = pod_inventory
+          @resources.build_pod_uid_lookup
         end
 
         replicaset_inventory_response = KubernetesApiClient.getKubeResourceInfo("replicasets?fieldSelector=metadata.namespace%3D#{@@KubeInfraNamespace}", api_group: @@ApiGroupApps)
         if !replicaset_inventory_response.nil? && !replicaset_inventory_response.body.nil?
-            replicaset_inventory = Yajl::Parser.parse(StringIO.new(replicaset_inventory_response.body))
-            @resources.set_replicaset_inventory(replicaset_inventory)
+          replicaset_inventory = Yajl::Parser.parse(StringIO.new(replicaset_inventory_response.body))
+          @resources.set_replicaset_inventory(replicaset_inventory)
         end
 
-
-        if node_inventory_response.code.to_i != 200
-          record = process_kube_api_up_monitor("fail", node_inventory_response)
-          health_monitor_records.push(record) if record
-        else
-          record = process_kube_api_up_monitor("pass", node_inventory_response)
-          health_monitor_records.push(record) if record
+        if !node_inventory_response.nil? && !node_inventory_response.code.nil?
+          if node_inventory_response.code.to_i != 200
+            record = process_kube_api_up_monitor("fail", node_inventory_response)
+            health_monitor_records.push(record) if record
+          else
+            record = process_kube_api_up_monitor("pass", node_inventory_response)
+            health_monitor_records.push(record) if record
+          end
         end
 
         if !pod_inventory.nil?
@@ -134,7 +135,7 @@ module Fluent
             health_monitor_records.push(record) if record
           end
         else
-            @@hmlog.info "POD INVENTORY IS NIL"
+          @@hmlog.info "POD INVENTORY IS NIL"
         end
 
         if !node_inventory.nil?
@@ -143,7 +144,7 @@ module Fluent
             health_monitor_records.push(record) if record
           end
         else
-            @@hmlog.info "NODE INVENTORY IS NIL"
+          @@hmlog.info "NODE INVENTORY IS NIL"
         end
 
         health_monitor_records.each do |record|
@@ -238,28 +239,28 @@ module Fluent
       hmlog = HealthMonitorUtils.get_log_handle
 
       records = []
-        pods_hash.keys.each do |key|
-          workload_name = key
-          total_pods = pods_hash[workload_name]["totalPods"]
-          pods_ready = pods_hash[workload_name]["podsReady"]
-          namespace = pods_hash[workload_name]["namespace"]
-          workload_kind = pods_hash[workload_name]["kind"]
-          percent = pods_ready / total_pods * 100
-          timestamp = Time.now.utc.iso8601
+      pods_hash.keys.each do |key|
+        workload_name = key
+        total_pods = pods_hash[workload_name]["totalPods"]
+        pods_ready = pods_hash[workload_name]["podsReady"]
+        namespace = pods_hash[workload_name]["namespace"]
+        workload_kind = pods_hash[workload_name]["kind"]
+        percent = pods_ready / total_pods * 100
+        timestamp = Time.now.utc.iso8601
 
-          state = HealthMonitorUtils.compute_percentage_state(percent, monitor_config)
-          health_monitor_record = {"timestamp" => timestamp, "state" => state, "details" => {"totalPods" => total_pods, "podsReady" => pods_ready, "workload_name" => workload_name, "namespace" => namespace, "workload_kind" => workload_kind}}
-          monitor_instance_id = HealthMonitorUtils.get_monitor_instance_id(config_monitor_id, [@@cluster_id, namespace, workload_name])
-          health_record = {}
-          time_now = Time.now.utc.iso8601
-          health_record[HealthMonitorRecordFields::MONITOR_ID] = config_monitor_id
-          health_record[HealthMonitorRecordFields::MONITOR_INSTANCE_ID] = monitor_instance_id
-          health_record[HealthMonitorRecordFields::DETAILS] = health_monitor_record
-          health_record[HealthMonitorRecordFields::TIME_GENERATED] = time_now
-          health_record[HealthMonitorRecordFields::TIME_FIRST_OBSERVED] = time_now
-          health_record[HealthMonitorRecordFields::CLUSTER_ID] = @@cluster_id
-          records.push(health_record)
-        end
+        state = HealthMonitorUtils.compute_percentage_state(percent, monitor_config)
+        health_monitor_record = {"timestamp" => timestamp, "state" => state, "details" => {"totalPods" => total_pods, "podsReady" => pods_ready, "workload_name" => workload_name, "namespace" => namespace, "workload_kind" => workload_kind}}
+        monitor_instance_id = HealthMonitorUtils.get_monitor_instance_id(config_monitor_id, [@@cluster_id, namespace, workload_name])
+        health_record = {}
+        time_now = Time.now.utc.iso8601
+        health_record[HealthMonitorRecordFields::MONITOR_ID] = config_monitor_id
+        health_record[HealthMonitorRecordFields::MONITOR_INSTANCE_ID] = monitor_instance_id
+        health_record[HealthMonitorRecordFields::DETAILS] = health_monitor_record
+        health_record[HealthMonitorRecordFields::TIME_GENERATED] = time_now
+        health_record[HealthMonitorRecordFields::TIME_FIRST_OBSERVED] = time_now
+        health_record[HealthMonitorRecordFields::CLUSTER_ID] = @@cluster_id
+        records.push(health_record)
+      end
       #@@hmlog.info "Successfully processed pods_ready_percentage for #{config_monitor_id} #{records.size}"
       return records
     end
@@ -270,56 +271,56 @@ module Fluent
       monitor_config = @provider.get_config(monitor_id)
       node_condition_monitor_records = []
       if !node_inventory.nil?
-          node_inventory['items'].each do |node|
-            node_name = node['metadata']['name']
-            conditions = node['status']['conditions']
-            node_state = HealthMonitorUtils.get_node_state_from_node_conditions(monitor_config, conditions)
-            details = {}
-            conditions.each do |condition|
-                condition_state = HealthMonitorStates::PASS
-                if condition['type'].downcase != 'ready'
-                    if (condition['status'].downcase == 'true' || condition['status'].downcase == 'unknown')
-                        condition_state = HealthMonitorStates::FAIL
-                    end
-                else #Condition == READY
-                    if condition['status'].downcase != 'true'
-                        condition_state = HealthMonitorStates::FAIL
-                    end
-                end
-                details[condition['type']] = {"Reason" => condition['reason'], "Message" => condition['message'], "State" => condition_state}
+        node_inventory["items"].each do |node|
+          node_name = node["metadata"]["name"]
+          conditions = node["status"]["conditions"]
+          node_state = HealthMonitorUtils.get_node_state_from_node_conditions(monitor_config, conditions)
+          details = {}
+          conditions.each do |condition|
+            condition_state = HealthMonitorStates::PASS
+            if condition["type"].downcase != "ready"
+              if (condition["status"].downcase == "true" || condition["status"].downcase == "unknown")
+                condition_state = HealthMonitorStates::FAIL
+              end
+            else #Condition == READY
+              if condition["status"].downcase != "true"
+                condition_state = HealthMonitorStates::FAIL
+              end
             end
-            health_monitor_record = {"timestamp" => timestamp, "state" => node_state, "details" => details}
-            monitor_instance_id = HealthMonitorUtils.get_monitor_instance_id(monitor_id, [@@cluster_id, node_name])
-            health_record = {}
-            time_now = Time.now.utc.iso8601
-            health_record[HealthMonitorRecordFields::MONITOR_ID] = monitor_id
-            health_record[HealthMonitorRecordFields::MONITOR_INSTANCE_ID] = monitor_instance_id
-            health_record[HealthMonitorRecordFields::DETAILS] = health_monitor_record
-            health_record[HealthMonitorRecordFields::TIME_GENERATED] =  time_now
-            health_record[HealthMonitorRecordFields::TIME_FIRST_OBSERVED] =  time_now
-            health_record[HealthMonitorRecordFields::CLUSTER_ID] = @@cluster_id
-            health_record[HealthMonitorRecordFields::NODE_NAME] = node_name
-            node_condition_monitor_records.push(health_record)
+            details[condition["type"]] = {"Reason" => condition["reason"], "Message" => condition["message"], "State" => condition_state}
           end
+          health_monitor_record = {"timestamp" => timestamp, "state" => node_state, "details" => details}
+          monitor_instance_id = HealthMonitorUtils.get_monitor_instance_id(monitor_id, [@@cluster_id, node_name])
+          health_record = {}
+          time_now = Time.now.utc.iso8601
+          health_record[HealthMonitorRecordFields::MONITOR_ID] = monitor_id
+          health_record[HealthMonitorRecordFields::MONITOR_INSTANCE_ID] = monitor_instance_id
+          health_record[HealthMonitorRecordFields::DETAILS] = health_monitor_record
+          health_record[HealthMonitorRecordFields::TIME_GENERATED] = time_now
+          health_record[HealthMonitorRecordFields::TIME_FIRST_OBSERVED] = time_now
+          health_record[HealthMonitorRecordFields::CLUSTER_ID] = @@cluster_id
+          health_record[HealthMonitorRecordFields::NODE_NAME] = node_name
+          node_condition_monitor_records.push(health_record)
+        end
       end
       #@@hmlog.info "Successfully processed process_node_condition_monitor #{node_condition_monitor_records.size}"
       return node_condition_monitor_records
     end
 
     def initialize_inventory
-        #this is required because there are other components, like the container cpu memory aggregator, that depends on the mapping being initialized
-        resourceUri = KubernetesApiClient.getNodesResourceUri("nodes")
-        node_inventory_response = KubernetesApiClient.getKubeResourceInfo(resourceUri)
-        node_inventory = Yajl::Parser.parse(StringIO.new(node_inventory_response.body))
-        pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods?fieldSelector=metadata.namespace%3D#{@@KubeInfraNamespace}")
-        pod_inventory = Yajl::Parser.parse(StringIO.new(pod_inventory_response.body))
-        replicaset_inventory_response = KubernetesApiClient.getKubeResourceInfo("replicasets?fieldSelector=metadata.namespace%3D#{@@KubeInfraNamespace}", api_group: @@ApiGroupApps)
-        replicaset_inventory = Yajl::Parser.parse(StringIO.new(replicaset_inventory_response.body))
+      #this is required because there are other components, like the container cpu memory aggregator, that depends on the mapping being initialized
+      resourceUri = KubernetesApiClient.getNodesResourceUri("nodes")
+      node_inventory_response = KubernetesApiClient.getKubeResourceInfo(resourceUri)
+      node_inventory = Yajl::Parser.parse(StringIO.new(node_inventory_response.body))
+      pod_inventory_response = KubernetesApiClient.getKubeResourceInfo("pods?fieldSelector=metadata.namespace%3D#{@@KubeInfraNamespace}")
+      pod_inventory = Yajl::Parser.parse(StringIO.new(pod_inventory_response.body))
+      replicaset_inventory_response = KubernetesApiClient.getKubeResourceInfo("replicasets?fieldSelector=metadata.namespace%3D#{@@KubeInfraNamespace}", api_group: @@ApiGroupApps)
+      replicaset_inventory = Yajl::Parser.parse(StringIO.new(replicaset_inventory_response.body))
 
-        @resources.node_inventory = node_inventory
-        @resources.pod_inventory = pod_inventory
-        @resources.set_replicaset_inventory(replicaset_inventory)
-        @resources.build_pod_uid_lookup
+      @resources.node_inventory = node_inventory
+      @resources.pod_inventory = pod_inventory
+      @resources.set_replicaset_inventory(replicaset_inventory)
+      @resources.build_pod_uid_lookup
     end
 
     def run_periodic

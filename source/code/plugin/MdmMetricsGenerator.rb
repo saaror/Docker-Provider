@@ -288,7 +288,6 @@ class MdmMetricsGenerator
         @log.info "Error in getDiskUsageMetricRecords: #{errorStr}"
         ApplicationInsightsUtility.sendExceptionTelemetry(errorStr)
       end
-      @log.info "getDiskUsageMetricRecords: #{records}"
       return records
     end
 

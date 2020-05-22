@@ -65,6 +65,7 @@ class ApplicationInsightsUtility
         @@CustomProperties["WorkspaceID"] = getWorkspaceId
         @@CustomProperties["AgentVersion"] = ENV[@@EnvAgentVersion]
         @@CustomProperties["ControllerType"] = ENV[@@EnvControllerType]
+        @@CustomProperties["Computer"] = @@hostName
         encodedAppInsightsKey = ENV[@@EnvApplicationInsightsKey]
         appInsightsEndpoint = ENV[@@EnvApplicationInsightsEndpoint]
         @@CustomProperties["WorkspaceCloud"] = getWorkspaceCloud

@@ -296,8 +296,8 @@ metadata:
 type: Opaque
 data:
   #BASE64 ENCODED (Both WSID & KEY) INSIDE DOUBLE QUOTE ("")
-  WSID: "VALUE_WSID"
-  KEY: "VALUE_KEY"
+  WSID: "YjIyMDE0ZTctZjI1MS00NjllLWI2NGYtYjY2YjE1ZGM2Nzg0"
+  KEY: "MFJQWUdjOGFwSjJEWCtiZkhHL1NlczgrVXEweURRb3RKWkpjSWNyb093TVQ0Q0RpcDdrVWlxY2tncEJ1TkdIUjIvZjZVaHhEUDcwN3VvUVpMMmwxVUE9PQo="
 ---
 apiVersion: apps/v1
 kind: DaemonSet
@@ -327,7 +327,7 @@ spec:
       serviceAccountName: omsagent
       containers:
         - name: omsagent
-          image: "mcr.microsoft.com/azuremonitor/containerinsights/ciprod:ciprod05262020"
+          image: "ayushisingh/omsagent:06102020" #will be replacing this everywhere in yaml
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -337,13 +337,13 @@ spec:
               cpu: 75m
               memory: 225Mi
           env:
-            # - name: AKS_RESOURCE_ID
-            #   value: "VALUE_AKS_RESOURCE_ID_VALUE"
-            # - name: AKS_REGION
-            #   value: "VALUE_AKS_RESOURCE_REGION_VALUE"
+            - name: AKS_RESOURCE_ID
+              value: "/subscriptions/72c8e8ca-dc16-47dc-b65c-6b5875eb600a/resourcegroups/ayushi-test/providers/Microsoft.ContainerService/managedClusters/t-aysi_cluster"
+            - name: AKS_REGION
+              value: "East US"
             #Uncomment below two lines for ACS clusters and set the cluster names manually. Also comment out the above two lines for ACS clusters
-            - name: ACS_RESOURCE_NAME
-              value: "my_acs_cluster_name"
+            # - name: ACS_RESOURCE_NAME
+              # value: "my_acs_cluster_name"
             - name: CONTROLLER_TYPE
               value: "DaemonSet"
             - name: NODE_IP
@@ -461,7 +461,7 @@ spec:
       serviceAccountName: omsagent
       containers:
         - name: omsagent
-          image: "mcr.microsoft.com/azuremonitor/containerinsights/ciprod:ciprod05262020"
+          image: "ayushisingh/omsagent:06102020"
           imagePullPolicy: IfNotPresent
           resources:
             limits:
@@ -471,13 +471,13 @@ spec:
               cpu: 150m
               memory: 250Mi
           env:
-            # - name: AKS_RESOURCE_ID
-            #   value: "VALUE_AKS_RESOURCE_ID_VALUE"
-            # - name: AKS_REGION
-            #   value: "VALUE_AKS_RESOURCE_REGION_VALUE"
+            - name: AKS_RESOURCE_ID
+              value: "/subscriptions/72c8e8ca-dc16-47dc-b65c-6b5875eb600a/resourcegroups/ayushi-test/providers/Microsoft.ContainerService/managedClusters/t-aysi_cluster"
+            - name: AKS_REGION
+              value: "East US"
             # Uncomment below two lines for ACS clusters and set the cluster names manually. Also comment out the above two lines for ACS clusters
-            - name: ACS_RESOURCE_NAME
-              value: "my_acs_cluster_name"
+            # - name: ACS_RESOURCE_NAME
+            #   value: "my_acs_cluster_name"
             - name: CONTROLLER_TYPE
               value: "ReplicaSet"
             - name: NODE_IP
@@ -614,12 +614,12 @@ spec:
            cpu: 75m
            memory: 225Mi
          env:
-          # - name: AKS_RESOURCE_ID
-          #   value: "VALUE_AKS_RESOURCE_ID_VALUE"
-          # - name: AKS_REGION
-          #   value: "VALUE_AKS_RESOURCE_REGION_VALUE"
-          - name: ACS_RESOURCE_NAME
-            value: "my_acs_cluster_name"
+          - name: AKS_RESOURCE_ID
+            value: "/subscriptions/72c8e8ca-dc16-47dc-b65c-6b5875eb600a/resourcegroups/ayushi-test/providers/Microsoft.ContainerService/managedClusters/t-aysi_cluster"
+          - name: AKS_REGION
+            value: "East US"
+          # - name: ACS_RESOURCE_NAME
+          #   value: "my_acs_cluster_name"
           - name: CONTROLLER_TYPE
             value: "DaemonSet"
           - name: HOSTNAME

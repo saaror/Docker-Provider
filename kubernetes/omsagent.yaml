@@ -655,6 +655,15 @@ spec:
                operator: In
                values:
                - windows
+     tolerations:
+     - key: "CriticalAddonsOnly"
+       operator: "Exists"
+     - operator: "Exists"
+       effect: NoExecute
+     - operator: "Exists"
+       effect: NoSchedule
+     - operator: "Exists"
+       effect: PreferNoSchedule
      volumes:
       - name: docker-windows-kuberenetes-container-logs
         hostPath:

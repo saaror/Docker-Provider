@@ -70,6 +70,7 @@ INSTALLER_TMPDIR := $(INTERMEDIATE_DIR)/installer_tmp
 
 # GO Source dir for custom fluent bit plugin
 GO_SOURCE_DIR := $(SOURCE_DIR)/plugins/go/src
+OT_SOURCE_DIR := $(SOURCE_DIR)/opentelemetry-collector-contrib
 
 ifeq ($(ENABLE_DEBUG),1)
 PROV_DEBUG_FLAGS := -g
@@ -98,9 +99,9 @@ endif
 # Build targets
 
 ifeq ($(ULINUX),1)
-all : PROVIDER_STATUS KIT_STATUS kit fluentbitplugin rubypluginstests
+all : PROVIDER_STATUS KIT_STATUS kit fluentbitplugin otelcontribcol rubypluginstests 
 else
-all : PROVIDER_STATUS fluentbitplugin rubypluginstests
+all : PROVIDER_STATUS fluentbitplugin otelcontribcol rubypluginstests
 endif
 
 clean :
@@ -134,6 +135,13 @@ rubypluginstests :
 	sudo gem install minitest
 	@echo "========================= Running tests..."
 	rake test
+
+otelcontribcol: 
+	@echo "========================= Building opentelemetry code"
+	$(MKPATH) $(INTERMEDIATE_DIR)
+	make -C $(OT_SOURCE_DIR) install-tools
+	make -C $(OT_SOURCE_DIR) 
+	$(COPY) $(OT_SOURCE_DIR)/bin/otelcontribcol_linux_amd64 $(INTERMEDIATE_DIR)
 
 #--------------------------------------------------------------------------------
 # Build the distribution kit

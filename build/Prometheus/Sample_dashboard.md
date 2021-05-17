@@ -2,27 +2,35 @@
 
 As part of this private preview you will get default Prometheus dashboards. These are total 19 dashboards
 1. K8s mix-ins
-2. API-server
-3. Cluster compute resources
-4. Namespace compute resources(Pods)
-5. Namespace compute resources(Workloads)
-6. Node compute resources
-7. Pod compute resources
-8. Workload compute resources
-9. Cluster network
-10. Workload network
-11. Namespace network(Pods)
-12. Namespace network(Workloads)
-13. Persistent Volume
-14. Core-dns
-15. Kubelet
-16. kube-proxy
-17. Node exporter(if installed)
-18.  Nodes
-19.  USE Method(Cluster)
-20.  USE Method(Node)
+    * API-server
+    * Cluster compute resources
+    * Namespace compute resources(Pods)
+    * Namespace compute resources(Workloads)
+    * Node compute resources
+    * Pod compute resources
+    * Workload compute resources
+    * Cluster network
+    * Workload network
+    * Namespace network(Pods)
+    * Namespace network(Workloads)
+    * Persistent Volume
+2. Core-dns
+3. Kubelet
+4. kube-proxy
+5. Node exporter(if installed)
+  * Nodes
+  * USE Method(Cluster)
+  * USE Method(Node)
 
-Link to use 
+Here is the [link](https://github.com/Azure/prometheus-collector/tree/main/otelcollector/deploy/dashboard) to the source-code of all the dashboards. These dashboards will be pre-installed in your managed Grafana instance.
+
+# Steps to use these dashboards
+1. Once you have set-up the Grafana instance and set-up the data-source. Learn more [here] in case you haven't. 
+2. Go to *Search* to see list of all the dashboards 
+3. Navigate to the dashboard & you can see all the visualizations.
+4. You can filter, view query and modify dashboard just like any Grafana instance.
+5. Read below to see how we can modify the dashboard.
+
 
 # Modify dashboard via Grafana.
 As part of Azure Managed Grafana, you will get in-built dashboards.You can query using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) but there are few limitations that you need be aware of, in case you modify the grafana dashboard

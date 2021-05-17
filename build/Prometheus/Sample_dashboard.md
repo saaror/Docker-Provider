@@ -24,8 +24,8 @@ As part of this private preview you will get default Prometheus dashboards. Thes
 
 Link to use 
 
-# Using these dashboards
-As part of Azure Managed Grafana, you will get these dashboards in-built, but there are few limitations that you need be aware of, in case you modify the grafana dashboard
+# Querying data via Grafana.
+As part of Azure Managed Grafana, you will get in-built dashboards.You can query using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) but there are few limitations that you need be aware of, in case you modify the grafana dashboard
 1. Query durations > 14d are blocked.
 2. Grafana Template functions
    * `label_values(my_label)` not supported due to cost of the query on MDM storage. Use `label_values(my_metric,my_label)` instead.

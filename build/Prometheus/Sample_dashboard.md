@@ -26,7 +26,7 @@ Here is the [link](https://github.com/Azure/prometheus-collector/tree/main/otelc
 
 # Steps to use these dashboards
 1. Once you have set-up the Grafana instance and set-up the data-source. Learn more [here] in case you haven't. 
-2. Go to *Search* to see list of all the dashboards 
+2. Go to *Search* to see list of all the dashboards. 
 3. Navigate to the dashboard & you can see all the visualizations.
 4. You can filter, view query and modify dashboard just like any Grafana instance.
 5. Read below to see how we can modify the dashboard.

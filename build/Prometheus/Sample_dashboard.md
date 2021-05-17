@@ -18,9 +18,9 @@ As part of this private preview you will get default Prometheus dashboards. Thes
 3. Kubelet
 4. kube-proxy
 5. Node exporter(if installed)
-  * Nodes
-  * USE Method(Cluster)
-  * USE Method(Node)
+    * Nodes
+    * USE Method(Cluster)
+    * USE Method(Node)
 
 Here is the [link](https://github.com/Azure/prometheus-collector/tree/main/otelcollector/deploy/dashboard) to the source-code of all the dashboards. These dashboards will be pre-installed in your managed Grafana instance.
 

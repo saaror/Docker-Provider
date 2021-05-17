@@ -24,7 +24,7 @@ As part of this private preview you will get default Prometheus dashboards. Thes
 
 Link to use 
 
-# Querying data via Grafana.
+# Modify dashboard via Grafana.
 As part of Azure Managed Grafana, you will get in-built dashboards.You can query using [PromQL](https://prometheus.io/docs/prometheus/latest/querying/basics/) but there are few limitations that you need be aware of, in case you modify the grafana dashboard
 1. Query durations > 14d are blocked.
 2. Grafana Template functions

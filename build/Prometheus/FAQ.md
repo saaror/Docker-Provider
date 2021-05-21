@@ -30,6 +30,7 @@ We are currently in limited preview with 5 selected customers. We will be openin
 3. When config changes, instead of process re-start with SIGHUP, container will restart **(will be fixed soon)**
 4. Metrics with Inf values will be dropped(we will address this soon)
 
+
 #### Known issues on query side
 1. Query durations > 14d are blocked
 2. Grafana Template functions
@@ -60,3 +61,7 @@ We are currently in limited preview with 5 selected customers. We will be openin
 1. You cannot query Prometheus metrics via Jarvis, we reccomend customers to use Grafana to access Prometheus metrics.
 2. You will not be able to use IFx* libaries for instrumenting Prometheus metrics. For now use Prometheus SDK to instrument your workloads & in future we will support these capabilities in OTel(Open Telemetry SDK).
 3. We will not support pre-aggregates & composite metrics in Prometheus metrics.
+
+#### Can I bring my own Grafana local instance & use Geneva-MDM backed Prometheus?
+Yes you can use this with your local Grafana instance. Please see the section [here](https://genevamondocs.azurewebsites.net/metrics/Prometheus/PromMDMTutorial4SetUpGrafanaAMG.html)
+
